@@ -261,7 +261,14 @@ function verificarIdentidad() {
                     entrarArea(areaSeleccionadaPaso);
                 } else {
                     const msg = document.getElementById('msg-error-id');
-                    if(msg) { msg.innerText = (u && u.estado === 'pendiente') ? "ESPERA APROBACIÓN" : "ID NO REGISTRADO"; msg.style.display = 'block'; }
+                    if(msg) {
+                        msg.innerText = (u && u.estado === 'pendiente') ? "ESPERA APROBACIÓN" : "ID NO REGISTRADO";
+                        msg.style.display = 'block';
+                        if (u && u.estado === 'pendiente') {
+                            localStorage.setItem('esperando_aprobacion', id);
+                            escucharEstadoSolicitud(id);
+                        }
+                    }
                 }
             });
         });
@@ -1470,6 +1477,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cargarSolicitudesAcceso();
     }
 
+    // Si hay una solicitud pendiente de este dispositivo, reanudar escucha
+    const idEsperando = localStorage.getItem('esperando_aprobacion');
+    if (idEsperando) {
+        escucharEstadoSolicitud(idEsperando);
+    }
+
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
         cargarListaUsuarios(); cargarListaPersonalAutorizado();
@@ -1629,10 +1642,44 @@ function enviarSolicitudAcceso() {
             fecha: new Date().toLocaleString()
         }).then(() => {
             notificar("SOLICITUD ENVIADA A LUIS", "exito");
+            localStorage.setItem('esperando_aprobacion', id);
+            escucharEstadoSolicitud(id);
             volverAVerificar();
         });
     } else {
         notificar("ERROR: SIN CONEXIÓN", "error");
     }
+}
+
+function escucharEstadoSolicitud(id) {
+    if (!database) return;
+    // Evitar múltiples listeners
+    database.ref('personal_autorizado/' + id).off('value');
+    database.ref('personal_autorizado/' + id).on('value', snap => {
+        const u = snap.val();
+        const esperando = localStorage.getItem('esperando_aprobacion');
+
+        if (!u) {
+            if (esperando === id) {
+                notificar("HMI U6: ACCESO DENEGADO - CONSULTE CON EL ADMINISTRADOR", "error");
+                localStorage.removeItem('esperando_aprobacion');
+                const msg = document.getElementById('msg-error-id');
+                if(msg) msg.innerText = "SOLICITUD RECHAZADA POR SEGURIDAD";
+                database.ref('personal_autorizado/' + id).off('value');
+            }
+            return;
+        }
+
+        if (u.estado === 'activo') {
+            notificar("HMI U6: ACCESO AUTORIZADO - BIENVENIDO AL SISTEMA", "exito");
+            localStorage.removeItem('esperando_aprobacion');
+            const msg = document.getElementById('msg-error-id');
+            if(msg) {
+                msg.innerText = "ACCESO CONCEDIDO. ¡YA PUEDES INGRESAR!";
+                msg.style.color = "#2ecc71";
+            }
+            database.ref('personal_autorizado/' + id).off('value');
+        }
+    });
 }
 function cargarPlanosVista() { /* No longer needed */ }
