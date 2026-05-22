@@ -270,9 +270,6 @@
                     <b>• Arquitectura de Datos:</b> Sincronización híbrida mediante Firebase y LocalStorage <b>(Significa que la app guarda la información en internet y en el teléfono al mismo tiempo para que siempre abra rápido).</b>
                 </div>
                 <div class="paso-item">
-                    <b>• Motor de IA:</b> Integración con el motor Llama-3.1 <b>(Es un cerebro inteligente que entiende tus preguntas y te ayuda a saber cómo reparar los equipos).</b>
-                </div>
-                <div class="paso-item">
                     <b>• Procesamiento de Imágenes:</b> Compresión adaptativa de fotos HD <b>(Las fotos se ven claritas pero no ocupan mucho espacio ni ponen pesado el celular).</b>
                 </div>
                 <div class="paso-item">
@@ -313,40 +310,6 @@
         </div>
     </div>
 
-    <!-- PERSONAJE OPERADOR IA (HOLOGRAMA) -->
-    <div id="btn-ia-flotante" class="btn-ia-flotante" onclick="abrirChatIA()">
-        <div class="ia-holograma-box" id="ia-saludo">
-            <div class="ia-personaje-img" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <i class="fas fa-helmet-safety" style="font-size: 2.2rem; margin-bottom: -18px; position: relative; z-index: 2;"></i>
-                <i class="fas fa-user" style="font-size: 4rem;"></i>
-            </div>
-            <div class="ia-mensaje-alerta">
-                <b>ING. ASISTENTE</b>
-                <span>¡Listo para la reparación! Toca aquí para dudas.</span>
-            </div>
-        </div>
-        <div class="ia-icono-base" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <i class="fas fa-helmet-safety" style="font-size: 1.3rem; margin-bottom: -10px; position: relative; z-index: 2;"></i>
-            <i class="fas fa-user" style="font-size: 2rem;"></i>
-        </div>
-    </div>
-
-    <!-- MODAL DE CHAT IA -->
-    <div id="modal-chat-ia" class="modal-hmi">
-        <div class="modal-content chat-ia-content">
-            <div class="chat-header">
-                <h3><i class="fas fa-brain"></i> Consultor Técnico IA</h3>
-                <button class="btn-cerrar-mini" onclick="cerrarChatIA()">&times;</button>
-            </div>
-            <div id="chat-mensajes" class="chat-mensajes">
-                <div class="mensaje-ia">Hola, soy tu asistente de Planta Centro. ¿En qué reparación o ensamble te puedo orientar hoy?</div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="input-pregunta-ia" placeholder="Escribe tu duda técnica aquí...">
-                <button onclick="enviarPreguntaIA()"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        </div>
-    </div>
 
     <!-- MODAL DE ACCESO PERSONALIZADO (LOGIN) -->
     <div id="modal-login" class="modal-hmi" style="display: none;">

@@ -995,14 +995,6 @@ function cerrarSesion() {
 
 function verificarActualizaciones() { if (database) database.ref('config/version').on('value', (s) => { if (parseFloat(s.val()) > VERSION_APP) { const btn = document.getElementById('btn-descargar-bienvenida'); if(btn) btn.style.display = 'inline-flex'; } }); }
 
-// ================= CHAT IA ==================
-function abrirChatIA() { document.getElementById('modal-chat-ia').style.display='flex'; }
-function cerrarChatIA() { document.getElementById('modal-chat-ia').style.display='none'; }
-function enviarPreguntaIA() {
-    const inp = document.getElementById('input-pregunta-ia'); const msg = inp.value.trim(); if(!msg) return;
-    const chat = document.getElementById('chat-mensajes'); chat.innerHTML += `<div class="mensaje-usuario">${msg}</div>`;
-    inp.value = ""; setTimeout(() => { chat.innerHTML += `<div class="mensaje-ia">Soy tu asistente. Para la Unidad 6, recuerda que el vapor principal opera a 540°C y 160 bar.</div>`; chat.scrollTop = chat.scrollHeight; }, 1000);
-}
 
 // ================= ANALIZADOR TÉCNICO AVANZADO DE RENDIMIENTO Y RIESGO METALÚRGICO ==================
 function analizarRendimiento() {
@@ -1161,7 +1153,6 @@ function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {
 document.addEventListener('DOMContentLoaded', () => {
     conectarFirebase(); const area = sessionStorage.getItem('area_actual'); const role = sessionStorage.getItem('user_role');
     const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = (area === 'Operaciones') ? 'flex' : 'none';
-    const btnIA = document.getElementById('btn-ia-flotante'); if(btnIA) btnIA.style.display = 'block';
 
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
