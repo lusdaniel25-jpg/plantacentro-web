@@ -152,6 +152,7 @@ function sincronizarColas() {
             actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_eliminaciones', JSON.stringify(actual));
             if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
+            registrarLog("ELIMINÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
         });
     });
 
@@ -163,6 +164,7 @@ function sincronizarColas() {
             localStorage.setItem('cola_envios', JSON.stringify(actual));
             notificar("REGISTRO EXITOSO: " + q.tag);
             if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
+            registrarLog("CARGÓ/EDITÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
         });
     });
 
@@ -179,6 +181,7 @@ function sincronizarColas() {
             localStorage.setItem('cola_planos_envios', JSON.stringify(actual));
             notificar("PLANO SINCRONIZADO: " + q.data.titulo);
             if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
+            registrarLog("SUBIÓ PLANO: " + q.data.titulo + " (" + q.area.toUpperCase() + ")");
         });
     });
     colaPlDel.forEach(q => {
@@ -187,6 +190,7 @@ function sincronizarColas() {
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_del', JSON.stringify(actual));
             if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
+            registrarLog("ELIMINÓ PLANO EN: " + q.area.toUpperCase());
         });
     });
 
@@ -198,6 +202,7 @@ function sincronizarColas() {
             localStorage.setItem('cola_docs_envios', JSON.stringify(actual));
             notificar("DOC SINCRONIZADO: " + q.data.titulo);
             if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
+            registrarLog("SUBIÓ DOCUMENTO: " + q.data.titulo + " (" + q.area.toUpperCase() + ")");
         });
     });
     colaDocDel.forEach(q => {
@@ -206,9 +211,11 @@ function sincronizarColas() {
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_del', JSON.stringify(actual));
             if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
+            registrarLog("ELIMINÓ DOCUMENTO EN: " + q.area.toUpperCase());
         });
     });
 }
+
 conectarFirebase();
 
 const DATOS_PLANTA = { "auxiliares": [], "turbina": [], "ciclo": [], "caldera": [], "calderas_auxiliares": [], "externas": [], "instrumentacion": [], "contra_incendio": [] };
@@ -425,6 +432,7 @@ function guardarParametrosOperacion() {
     localStorage.setItem('cache_operacion_u6', JSON.stringify(data));
     if(database) database.ref('operacion/unidad6').set(data);
     notificar("PROTOCOLOS ACTUALIZADOS");
+    registrarLog("ACTUALIZÓ PROTOCOLOS DE OPERACIÓN U6");
     document.getElementById('modal-edit-op').style.display = 'none';
     document.getElementById('auth-op-pass').value = ""; // Limpiar clave
     renderizarDatosOperacion(data);
@@ -814,6 +822,7 @@ function guardarManualArea() {
     if(database) database.ref('manuales_areas/'+area).set(texto);
     const cache = JSON.parse(localStorage.getItem('manuales_areas') || "{}"); cache[area] = texto; localStorage.setItem('manuales_areas', JSON.stringify(cache));
     notificar("MANUAL ACTUALIZADO");
+    registrarLog("ACTUALIZÓ MANUAL: " + area.toUpperCase());
 }
 
 function cargarDocsEdicion() {
@@ -1171,11 +1180,6 @@ function publicarNuevaVersion() {
 function notificar(msj, tipo = 'exito') {
     const msjUpper = msj.toUpperCase();
 
-    // Lanzar notificación nativa de Android si está disponible
-    if (typeof Android !== "undefined" && Android.showNativeNotification) {
-        Android.showNativeNotification("PLANTA CENTRO U6", msjUpper);
-    }
-
     const existentes = document.querySelectorAll('.toast-modern span');
     for (let a of existentes) { if (a.innerText === msjUpper) return; }
     let container = document.querySelector('.toast-container');
@@ -1185,6 +1189,30 @@ function notificar(msj, tipo = 'exito') {
     container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 1500);
+}
+
+// ================= GESTIÓN DE LOGS Y NOTIFICACIONES PARA ADMIN ==================
+function registrarLog(msj) {
+    if (!database || sessionStorage.getItem('user_role') === 'super') return;
+    database.ref('logs_actividad').push({
+        usuario: sessionStorage.getItem('user_name') || 'Invitado',
+        accion: msj,
+        fecha: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
+let logsVigilanteActivo = false;
+function monitorearActividad() {
+    if (!database) return;
+    const ref = database.ref('logs_actividad').limitToLast(1);
+    ref.on('child_added', snap => {
+        if (!logsVigilanteActivo) return;
+        const log = snap.val();
+        if (log.usuario.toLowerCase() !== 'luis') {
+            notificar(`ALERTA ACTIVIDAD: ${log.usuario.toUpperCase()} - ${log.accion}`, "warning");
+        }
+    });
+    setTimeout(() => { logsVigilanteActivo = true; }, 3000);
 }
 
 function compartirApp() {
@@ -1482,6 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Monitoreo global para el Maestro
     if(role === 'super') {
         cargarSolicitudesAcceso();
+        monitorearActividad();
     }
 
     // Si hay una solicitud pendiente de este dispositivo, reanudar escucha
