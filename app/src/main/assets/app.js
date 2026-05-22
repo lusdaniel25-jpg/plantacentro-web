@@ -872,6 +872,159 @@ function enviarPreguntaIA() {
     inp.value = ""; setTimeout(() => { chat.innerHTML += `<div class="mensaje-ia">Soy tu asistente. Para la Unidad 6, recuerda que el vapor principal opera a 540°C y 160 bar.</div>`; chat.scrollTop = chat.scrollHeight; }, 1000);
 }
 
+// ================= ANALIZADOR TÉCNICO AVANZADO DE RENDIMIENTO Y RIESGO METALÚRGICO ==================
+function analizarRendimiento() {
+    const tiempo = parseFloat(document.getElementById('calc-tiempo').value) || 0;
+    const mw = parseFloat(document.getElementById('calc-mw').value) || 0;
+    const fuel = parseFloat(document.getElementById('calc-fuel').value) || 0;
+    const pres = parseFloat(document.getElementById('calc-presion').value) || 0;
+    const temp = parseFloat(document.getElementById('calc-temp').value) || 0;
+    const vacio = parseFloat(document.getElementById('calc-vacio').value) || 0;
+
+    if (tiempo === 0 && mw <= 0) {
+        notificar("INGRESE TIEMPO O CARGA", "error");
+        return;
+    }
+
+    // --- CÁLCULOS TERMODINÁMICOS ---
+    const pci = 10200;
+    const eficiencia = mw > 0 ? ((mw * 860) / (fuel * pci)) * 100 : 0;
+
+    let reporte = "";
+    let criticidad = "normal";
+    let colorHex = "#00ffcc";
+
+    // --- ANÁLISIS DE FASE DE ARRANQUE ---
+    let faseActual = "ESTABILIZACIÓN";
+    if (tiempo < 30) faseActual = "RODADO / CALENTAMIENTO";
+    else if (tiempo >= 30 && tiempo < 60) faseActual = "PRE-SINCRONIZACIÓN";
+    else if (mw > 0 && mw < 580) faseActual = "SUBIDA DE CARGA";
+    else if (mw >= 580) faseActual = "OPERACIÓN NOMINAL";
+
+    // --- EVALUACIÓN DE RIESGOS METALÚRGICOS ---
+    if (temp > 545 && temp <= 555) {
+        reporte += "⚠️ <b>FATIGA TÉRMICA:</b> Temperatura elevada. Estrés en sobrecalentadores.<br>";
+        criticidad = "alerta"; colorHex = "#ffcc00";
+    } else if (temp > 555) {
+        reporte += "🚨 <b>PELIGRO CREEP:</b> Operación en zona de fluencia. Riesgo de rotura inminente.<br>";
+        criticidad = "peligro"; colorHex = "#ff0000";
+    }
+
+    if (vacio > 85) {
+        reporte += "☢️ <b>VIBRACIÓN TURBINA:</b> Vacío degradado. Peligro para álabes de LP.<br>";
+        criticidad = "peligro"; colorHex = "#ff0000";
+    }
+
+    if (reporte === "") reporte = "✅ <b>SISTEMA DENTRO DE CURVA:</b> No se detectan riesgos estructurales.";
+
+    // --- ACTUALIZAR UI ---
+    const resDiv = document.getElementById('diagnostico-rendimiento');
+    const resEfi = document.getElementById('res-eficiencia');
+    const resDiag = document.getElementById('res-diagnostico');
+
+    resDiv.style.display = 'block';
+    resDiv.style.borderLeft = `5px solid ${colorHex}`;
+    resEfi.innerHTML = mw > 0 ? `EFICIENCIA η: ${eficiencia.toFixed(2)}%` : `ARRANQUE EN PROGRESO`;
+    resEfi.style.color = colorHex;
+    resDiag.innerHTML = `<b>FASE: ${faseActual}</b><br>${reporte}`;
+
+    dibujarGraficaArranqueCompleta(tiempo, mw, temp, criticidad);
+    notificar("ANÁLISIS DE ARRANQUE REALIZADO", "exito");
+}
+
+function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {
+    const canvas = document.getElementById('grafica-arranque');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const w = rect.width; const h = rect.height;
+    const padL = 50; const padB = 40;
+    const gW = w - padL - 20; const gH = h - padB - 20;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // 1. ZONAS DE SEGURIDAD (Background)
+    ctx.fillStyle = "rgba(255, 0, 0, 0.1)"; // Zona de Peligro
+    ctx.fillRect(padL, 20, gW, gH * 0.3);
+    ctx.fillStyle = "rgba(255, 204, 0, 0.05)"; // Zona Alerta
+    ctx.fillRect(padL, 20 + gH * 0.3, gW, gH * 0.3);
+    ctx.fillStyle = "rgba(0, 255, 0, 0.03)"; // Zona Segura
+    ctx.fillRect(padL, 20 + gH * 0.6, gW, gH * 0.4);
+
+    // 2. CURVA DE ARRANQUE IDEAL (Referencia Técnica Principal)
+    // Representa el camino esperado de MW según el Tiempo
+    ctx.strokeStyle = "#00ffcc";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(padL, h - padB);
+
+    // Hito: Rodado (Se mantiene en 0 MW durante los primeros 30 min de calentamiento)
+    const xRodadoFin = padL + (30 / 180) * gW;
+    ctx.lineTo(xRodadoFin, h - padB);
+
+    // Hito: Sincronización (Inicia subida a los 45 min aprox)
+    const xSincro = padL + (45 / 180) * gW;
+    ctx.bezierCurveTo(xSincro, h - padB, xSincro + (gW * 0.2), h - padB - (gH * 0.5), w - 20, 30);
+    ctx.stroke();
+
+    // Etiquetas de hitos en la curva
+    ctx.fillStyle = "#00ffcc"; ctx.font = "bold 9px Arial";
+    ctx.fillText("CURVA IDEAL", w - 80, 25);
+
+    // Marcador vertical de Sincronización
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(255, 204, 0, 0.5)";
+    ctx.beginPath(); ctx.moveTo(xSincro, h - padB); ctx.lineTo(xSincro, 20); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#ffcc00";
+    ctx.fillText("SINCRONIZACIÓN (45 min)", xSincro - 40, h - padB + 15);
+
+    // 3. PUNTO DE OPERACIÓN ACTUAL (Seguimiento Real)
+    const posX = padL + (Math.min(t, 180) / 180) * gW;
+    const posY = (h - padB) - (Math.min(mw, 600) / 600) * gH;
+    const color = criticidad === 'peligro' ? '#ff0000' : (criticidad === 'alerta' ? '#ffcc00' : '#00ffcc');
+
+    // Cruceta de posición punteada
+    ctx.setLineDash([2, 2]); ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.beginPath(); ctx.moveTo(posX, h-padB); ctx.lineTo(posX, 20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(padL, posY); ctx.lineTo(posX, posY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Punto radiante con radar si hay peligro
+    if(criticidad === 'peligro') {
+        ctx.strokeStyle = color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(posX, posY, 15 + Math.sin(Date.now()/150)*5, 0, Math.PI*2); ctx.stroke();
+    }
+    ctx.shadowBlur = 15; ctx.shadowColor = color;
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(posX, posY, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // 4. ETIQUETAS EXTERNAS (Ejes)
+    ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial";
+    ctx.fillText(`${t} min`, posX - 15, h - padB + 28);
+    ctx.fillText(`${mw} MW`, padL - 45, posY + 5);
+    ctx.fillStyle = "#ffcc00";
+    ctx.fillText(`${temp}°C`, posX + 12, posY - 10);
+
+    // 5. EJES PRINCIPALES
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(padL, 20); ctx.lineTo(padL, h - padB); ctx.lineTo(w - 20, h - padB); ctx.stroke();
+
+    ctx.fillStyle = "#aaa"; ctx.fillText("TIEMPO (MIN) ->", w - 70, h - 5);
+    ctx.save(); ctx.translate(15, 60); ctx.rotate(-Math.PI/2); ctx.fillText("CARGA (MW)", 0, 0); ctx.restore();
+
+    // 6. ACTUALIZAR HEADER DE ESTADO
+    const fase = document.getElementById('txt-fase-arranque');
+    if (fase) {
+        fase.innerHTML = `TIEMPO: <span style="color:#ffcc00">${t} MIN</span> | CARGA: <span style="color:#00ffcc">${mw} MW</span>`;
+    }
+}
+
+
+
 // ================= INICIALIZACIÓN ==================
 document.addEventListener('DOMContentLoaded', () => {
     conectarFirebase(); const area = localStorage.getItem('area_actual'); const role = localStorage.getItem('user_role');
