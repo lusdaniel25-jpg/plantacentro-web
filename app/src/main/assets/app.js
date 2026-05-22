@@ -16,6 +16,7 @@ const LINK_DESCARGA_APK = "https://drive.google.com/uc?export=download&id=1nKGa8
 let database;
 let listenerConexionActivo = false;
 let notificacionConexionMostrada = false;
+let notificacionOfflineMostrada = false;
 let areaSeleccionadaPaso = "";
 let equiposActuales = [];
 let fotosBase64 = [];
@@ -39,6 +40,7 @@ function conectarFirebase() {
                     if (sessionStorage.getItem('user_role') && !notificacionConexionMostrada) {
                         notificar(`CONECTADO [MODO: ${role.toUpperCase()}]`, "exito");
                         notificacionConexionMostrada = true;
+                        notificacionOfflineMostrada = false; // Resetear para que pueda volver a salir si se cae
                     }
 
                     // RASTREO DE PRESENCIA CON ÚLTIMA CONEXIÓN (MAESTROS Y ESTÁNDAR)
@@ -57,7 +59,11 @@ function conectarFirebase() {
                         if(s.val()) localStorage.setItem('master_pass', s.val());
                     });
                 } else {
-                    notificar("MODO OFFLINE", "info");
+                    if (!navigator.onLine && !notificacionOfflineMostrada) {
+                        notificar("MODO OFFLINE: SIN CONEXIÓN A INTERNET", "info");
+                        notificacionOfflineMostrada = true;
+                        notificacionConexionMostrada = false; // Resetear para que avise al volver
+                    }
                 }
             });
             listenerConexionActivo = true;
