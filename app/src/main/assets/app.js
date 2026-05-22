@@ -318,7 +318,10 @@ function dibujarEquipos(equipos) {
 function verFicha(eq) {
     let imgH = ""; let imgs = Array.isArray(eq.img) ? eq.img : (eq.img ? [eq.img] : []);
     imgs.forEach(i => imgH += `<img src="${i}" style="width:100%; border-radius:12px; border:2px solid #ffcc00; margin-top:15px;">`);
-    document.getElementById('info-tecnica').innerHTML = `<h2 style="color:#ffcc00;">${eq.nombre}</h2><p style="color:#00ccff; font-family:monospace;">[ ${eq.tag} ]</p><p>${eq.info || ''}</p><p><b>UBICACIÓN:</b> ${eq.ubicacion || 'Planta Centro'}</p>${imgH}`;
+
+    const registroH = eq.editado_por ? `<p style="font-size:0.7rem; color:#aaa; margin-top:15px; border-top:1px solid #333; padding-top:10px;"><i class="fas fa-history"></i> ÚLTIMO CAMBIO: ${eq.fecha_edicion} por ${eq.editado_por.toUpperCase()}</p>` : "";
+
+    document.getElementById('info-tecnica').innerHTML = `<h2 style="color:#ffcc00;">${eq.nombre}</h2><p style="color:#00ccff; font-family:monospace;">[ ${eq.tag} ]</p><p>${eq.info || ''}</p><p><b>UBICACIÓN:</b> ${eq.ubicacion || 'Planta Centro'}</p>${imgH}${registroH}`;
     document.getElementById('modal-info').style.display = 'flex';
 }
 
@@ -341,7 +344,8 @@ function cargarPlanosDelArea(area) {
 
         lista.innerHTML = "";
         Object.keys(combinados).forEach(id => {
-            lista.innerHTML += `<div class="plano-item-card"><h4>${combinados[id].titulo}</h4><img src="${combinados[id].foto}" onclick="verImagenFull('${combinados[id].foto}', '${combinados[id].titulo}')"></div>`;
+            const p = combinados[id];
+            lista.innerHTML += `<div class="plano-item-card"><h4>${p.titulo}</h4>${p.autor ? `<small style="color:#aaa; display:block; margin-bottom:5px; font-size:0.6rem;">SUBIDO POR: ${p.autor.toUpperCase()}</small>` : ''}<img src="${p.foto}" onclick="verImagenFull('${p.foto}', '${p.titulo}')"></div>`;
         });
         cont.style.display = Object.keys(combinados).length > 0 ? 'block' : 'none';
     };
@@ -405,7 +409,8 @@ function cargarEquiposEdicion() {
                         <div>
                             <b style="color: #ffcc00; font-size: 0.85rem;">${eq.nombre}</b><br>
                             <small style="color: #aaa; font-family: monospace; font-size: 0.7rem;">[ ${eq.tag} ]</small>
-                            ${colaEnv.some(q=>q.tag===eq.tag && q.area===area) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE)</small>' : ''}
+                            ${eq.editado_por ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${eq.editado_por.toUpperCase()}</small> <small style="color:#666; font-size:0.6rem;">(${eq.fecha_edicion})</small>` : ''}
+                            ${colaEnv.some(q=>q.tag===eq.tag && q.area===area) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
@@ -435,7 +440,16 @@ function procesarCarga() {
     const ubicacion = document.getElementById('input-ubicacion').value.trim();
 
     if (!tag || !nombre) { notificar("TAG Y NOMBRE REQUERIDOS", "error"); return; }
-    const equipo = { tag, nombre, info, operacion, ubicacion, img: fotosBase64, area: area };
+
+    const autor = localStorage.getItem('user_name') || 'Desconocido';
+    const fecha = new Date().toLocaleString();
+
+    const equipo = {
+        tag, nombre, info, operacion, ubicacion,
+        img: fotosBase64, area: area,
+        editado_por: autor,
+        fecha_edicion: fecha
+    };
 
     let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     colaEnv = colaEnv.filter(i => !(i.tag === tag && i.area === area));
@@ -497,7 +511,9 @@ function guardarPlanoGeneral() {
     const reader = new FileReader();
     reader.onload = (e) => {
         const id = "plano_" + Date.now();
-        const data = { titulo: tit, foto: e.target.result };
+        const autor = localStorage.getItem('user_name') || 'Desconocido';
+        const fecha = new Date().toLocaleString();
+        const data = { titulo: tit, foto: e.target.result, autor: autor, fecha: fecha };
 
         let cola = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
         cola.push({ area, id, data });
@@ -589,8 +605,10 @@ function guardarDocumento() {
     const reader = new FileReader();
     reader.onload = (e) => {
         const id = "doc_" + Date.now();
+        const autor = localStorage.getItem('user_name') || 'Desconocido';
+        const fecha = new Date().toLocaleString();
         const ext = file.name.split('.').pop();
-        const data = { titulo: tit, archivo: e.target.result, extension: ext };
+        const data = { titulo: tit, archivo: e.target.result, extension: ext, autor: autor, fecha: fecha };
 
         let cola = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
         cola.push({ area, id, data });
