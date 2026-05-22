@@ -366,6 +366,7 @@ body::before {
     margin-bottom: 20px;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
 }
 

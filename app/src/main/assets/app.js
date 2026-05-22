@@ -1029,7 +1029,7 @@ function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {
 document.addEventListener('DOMContentLoaded', () => {
     conectarFirebase(); const area = localStorage.getItem('area_actual'); const role = localStorage.getItem('user_role');
     const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = (area === 'Operaciones') ? 'flex' : 'none';
-    const btnIA = document.getElementById('btn-ia-flotante'); if(btnIA && (area === 'mecanico' || area === 'electricista')) btnIA.style.display = 'block';
+    const btnIA = document.getElementById('btn-ia-flotante'); if(btnIA) btnIA.style.display = 'block';
 
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
