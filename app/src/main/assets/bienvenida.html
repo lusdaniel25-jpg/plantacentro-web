@@ -235,19 +235,12 @@
         function toggleCortina() {
             document.getElementById('cortina-roles').classList.toggle('active');
         }
-        function entrarArea(area) {
-            sessionStorage.setItem('area_actual', area);
-            window.location.href = "index.html";
-        }
         function abrirBio() {
             document.getElementById('modal-bio').style.display = 'flex';
         }
         function cerrarBio() {
             document.getElementById('modal-bio').style.display = 'none';
         }
-        // Funciones para el manual ya que app.js se encarga de ellas si se vincula correctamente
-        function abrirManual() { document.getElementById('modal-manual').style.display = 'flex'; }
-        function cerrarManual() { document.getElementById('modal-manual').style.display = 'none'; }
     </script>
 </body>
 

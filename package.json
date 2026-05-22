@@ -1,0 +1,29 @@
+{
+  "name": "planta-centro-u6",
+  "version": "1.0.0",
+  "description": "Sistema de Gestión Industrial Unidad 6",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx cap serve",
+    "build": "echo 'Syncing assets...'",
+    "ios": "npx cap open ios",
+    "android": "npx cap open android",
+    "electron": "npx cap open electron",
+    "assets": "npx @capacitor/assets generate --android --ios"
+  },
+  "dependencies": {
+    "@capacitor-community/electron": "^5.0.1",
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/assets": "^3.0.0",
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/ios": "^5.0.0",
+    "@capacitor/splash-screen": "^5.0.0",
+    "add": "^2.0.6",
+    "cap": "^0.2.1",
+    "electron": "^42.2.0",
+    "npx": "^10.2.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.0.0"
+  }
+}

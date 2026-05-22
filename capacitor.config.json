@@ -1,0 +1,24 @@
+{
+  "appId": "com.example.plantacentro",
+  "appName": "Planta Centro U6",
+  "webDir": "app/src/main/assets",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 3000,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 300,
+      "backgroundColor": "#0a0a0a",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "androidSpinnerStyle": "large",
+      "iosSpinnerStyle": "small",
+      "spinnerColor": "#ffcc00",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
+}

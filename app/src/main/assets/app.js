@@ -1,6 +1,29 @@
 // Configuración de Firebase - Planta Centro Unidad 6
 const VERSION_APP = 1.0;
 
+// --- SHIM DE COMPATIBILIDAD NAVEGADOR/PC ---
+if (typeof Android === "undefined") {
+    console.log("Detectado: Navegador Web (Simulando interfaz Android)");
+    window.Android = {
+        shareApp: function(text) {
+            console.log("Compartir:", text);
+            if(navigator.share) {
+                navigator.share({ title: 'Planta Centro U6', text: text });
+            } else {
+                alert("Enlace copiado: " + text);
+            }
+        },
+        downloadUpdate: function(url) { window.open(url, '_blank'); },
+        saveFile: function(base64, fileName) {
+            const link = document.createElement('a');
+            link.href = base64;
+            link.download = fileName;
+            link.click();
+        },
+        createShortcut: function() { console.log("Accesos directos no disponibles en Web"); }
+    };
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyDil3ElPxLGRVWRXH4bAAKUIRqDrA_We6o",
   authDomain: "planta-centro-u6.firebaseapp.com",
@@ -254,7 +277,11 @@ function confirmarAcceso() {
     }
 }
 
-function entrarArea(area) { localStorage.setItem('area_actual', area); window.location.replace("index.html"); }
+function entrarArea(area) {
+    localStorage.setItem('area_actual', area);
+    sessionStorage.setItem('area_actual', area); // Sincronizar ambos para seguridad
+    window.location.href = "index.html";
+}
 
 // ================= HMI OPERACIONES Y GRÁFICA ==================
 function abrirSeccionOperacion() {
@@ -1003,12 +1030,29 @@ function notificar(msj, tipo = 'exito') {
 
 function compartirApp() {
     const msj = "Descarga App U6 Planta Centro: " + LINK_DESCARGA_APK;
-    if (typeof Android !== "undefined" && Android.shareApp) Android.shareApp(msj);
-    else if (navigator.share) navigator.share({ title: 'App U6', text: msj, url: LINK_DESCARGA_APK });
-    else notificar("LINK: " + LINK_DESCARGA_APK, "info");
+    // Android
+    if (typeof Android !== "undefined" && Android.shareApp) {
+        Android.shareApp(msj);
+    }
+    // iOS (Capacitor/Native)
+    else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.share) {
+        window.webkit.messageHandlers.share.postMessage(msj);
+    }
+    // Windows / Web Standard
+    else if (navigator.share) {
+        navigator.share({ title: 'App U6', text: msj, url: LINK_DESCARGA_APK });
+    } else {
+        notificar("LINK: " + LINK_DESCARGA_APK, "info");
+    }
 }
 
-function descargarApp() { if (typeof Android !== "undefined" && Android.downloadUpdate) Android.downloadUpdate(LINK_DESCARGA_APK); else window.open(LINK_DESCARGA_APK, '_blank'); }
+function descargarApp() {
+    if (typeof Android !== "undefined" && Android.downloadUpdate) {
+        Android.downloadUpdate(LINK_DESCARGA_APK);
+    } else {
+        window.open(LINK_DESCARGA_APK, '_blank');
+    }
+}
 
 function cerrarSesion() {
     sessionStorage.clear();
@@ -1320,7 +1364,23 @@ function limpiarFormulario() {
 }
 function cerrarModalID() { document.getElementById('modal-id-acceso').style.display = 'none'; }
 function volverAVerificar() { if(document.getElementById('wrapper-verificar-id')) document.getElementById('wrapper-verificar-id').style.display = 'block'; if(document.getElementById('wrapper-solicitar-acceso')) document.getElementById('wrapper-solicitar-acceso').style.display = 'none'; }
-function descargarDocumento(b64, n) { if (typeof Android !== "undefined" && Android.saveFile) Android.saveFile(b64, n); else { const l = document.createElement('a'); l.href = b64; l.download = n; l.click(); } }
+function descargarDocumento(b64, n) {
+    // Android bridge
+    if (typeof Android !== "undefined" && Android.saveFile) {
+        Android.saveFile(b64, n);
+    }
+    // iOS bridge
+    else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveFile) {
+        window.webkit.messageHandlers.saveFile.postMessage({base64: b64, name: n});
+    }
+    // Windows/Web browser
+    else {
+        const l = document.createElement('a');
+        l.href = b64;
+        l.download = n;
+        l.click();
+    }
+}
 function validarAcceso() { document.getElementById('modal-login').style.display = 'flex'; }
 function cerrarLogin() { document.getElementById('modal-login').style.display = 'none'; }
 function abrirManual() { document.getElementById('modal-manual').style.display = 'flex'; }
