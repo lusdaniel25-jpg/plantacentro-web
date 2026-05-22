@@ -277,52 +277,49 @@
                 <button class="btn-cerrar-mini" onclick="cerrarManual()">&times;</button>
             </header>
 
-            <section class="manual-seccion">
-                <h3><i class="fas fa-bullseye"></i> OBJETIVO DEL PROYECTO</h3>
-                <p>Esta aplicación ha sido diseñada para eliminar la dependencia de manuales físicos y mejorar la respuesta ante fallas en la <b>Unidad 6 de Planta Centro</b>. El objetivo es centralizar fichas técnicas, fotos de placas y protocolos de operación en un solo dispositivo móvil.</p>
-            </section>
+            <div style="text-align: left; padding: 10px; max-height: 60vh; overflow-y: auto;">
 
-            <section class="manual-seccion">
-                <h3><i class="fas fa-microchip"></i> ESPECIFICACIONES TÉCNICAS</h3>
-                <div class="paso-item">
-                    <b>• Arquitectura de Datos:</b> Sincronización híbrida mediante Firebase y LocalStorage <b>(Significa que la app guarda la información en internet y en el teléfono al mismo tiempo para que siempre abra rápido).</b>
-                </div>
-                <div class="paso-item">
-                    <b>• Procesamiento de Imágenes:</b> Compresión adaptativa de fotos HD <b>(Las fotos se ven claritas pero no ocupan mucho espacio ni ponen pesado el celular).</b>
-                </div>
-                <div class="paso-item">
-                    <b>• Estrategia Offline-First:</b> Mecanismo de cola de subida <b>(Si no hay señal en la planta, la app guarda lo que hiciste y lo sube solo apenas consigas internet).</b>
-                </div>
-                <div class="paso-item">
-                    <b>• Seguridad y Roles:</b> Control de acceso segregado <b>(Luis controla quién tiene permiso para borrar y quién solo puede cargar o editar información).</b>
-                </div>
-            </section>
-
-            <section class="manual-seccion">
-                <h3><i class="fas fa-book-open"></i> GUÍA DE USO OPERATIVO</h3>
-                <div class="paso-item"><b>1. Selección de Entorno:</b> Identifique su área (Mecánica/Eléctrica/Operaciones) para activar las herramientas especializadas.</div>
-                <div class="paso-item"><b>2. Auditoría de Equipos:</b> Navegue por sistemas y acceda a fichas técnicas para validar Alfanumérico y protocolos de operación adecuada.</div>
-                <div class="paso-item"><b>3. Control Operativo:</b> (Solo Operaciones) Acceda al panel de pasos secuenciales y condiciones en servicio para el arranque de la unidad.</div>
-                <div class="paso-item"><b>4. Calculadora Técnica:</b> Use la herramienta integrada para determinar la eficiencia térmica según el flujo de combustible (kg/h).</div>
-                <div class="paso-item"><b>5. Registro en Campo:</b> Use el panel Admin para cargar incidencias. Los usuarios validados pueden entrar sin internet (Offline).</div>
-            </section>
-
-            <section class="manual-seccion bio-seccion">
-                <div class="bio-card-manual">
-                    <h3>PERFIL DEL AUTOR</h3>
-                    <p><strong>Tec. Luis Gonzalez</strong></p>
-                    <p>Operador HMI de Planta Centro. Innovador en soluciones digitales para la industria eléctrica. TSU en Informática.</p>
-
-                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-                        <a href="https://wa.me/584129431568" target="_blank" style="background: #25d366; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                <section class="manual-seccion" style="background: rgba(255, 204, 0, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 204, 0, 0.2); margin-bottom: 20px;">
+                    <h3 style="color: #ffcc00;"><i class="fas fa-address-book"></i> SOPORTE Y CONTACTO DIRECTO</h3>
+                    <p style="font-size: 0.8rem; margin-bottom: 12px;">Desarrollado por <b>Tec. Luis Gonzalez</b> para la optimización de Planta Centro.</p>
+                    <p style="font-size: 0.75rem; color: #ffcc00; margin-bottom: 12px;"><b>COLABORADORES:</b> Tec. Jorge Chacon</p>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <a href="https://wa.me/584129431568" target="_blank" style="background: #25d366; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
                             <i class="fab fa-whatsapp"></i> WHATSAPP
                         </a>
-                        <a href="mailto:lusdaniel25@gmail.com" style="background: #ea4335; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                        <a href="mailto:lusdaniel25@gmail.com" style="background: #ea4335; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center;">
                             <i class="fas fa-envelope"></i> CORREO
                         </a>
                     </div>
-                </div>
-            </section>
+                </section>
+
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-bullseye"></i> OBJETIVO DEL PROYECTO</h3>
+                    <p>Centralizar y digitalizar toda la gestión técnica de la <b>Unidad 6 de Planta Centro</b>. El sistema busca eliminar el uso de manuales en papel, permitiendo que cada operador y técnico tenga acceso inmediato a fichas, planos y protocolos desde su dispositivo móvil.</p>
+                </section>
+
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-eye"></i> VISIÓN Y MISIÓN</h3>
+                    <p><b>MISIÓN:</b> Proveer una herramienta digital robusta que garantice el acceso a la información técnica de campo en tiempo real, mejorando la seguridad y eficiencia operativa.</p>
+                    <p><b>VISIÓN:</b> Convertirse en el estándar de gestión operativa digital para todas las unidades de Planta Centro, integrando tecnología de vanguardia en el mantenimiento industrial.</p>
+                </section>
+
+                <section class="manual-seccion" style="border-left: 4px solid #00ffcc; padding-left: 15px;">
+                    <h3><i class="fas fa-star"></i> NUEVAS FUNCIONES ACTUALIZADAS</h3>
+                    <div class="paso-item"><b>• Conversor Técnico:</b> Herramienta integrada para convertir unidades de Presión (bar, psi, MPa, kPa), Temperatura, Flujo y Potencia.</div>
+                    <div class="paso-item"><b>• Análisis de Riesgo:</b> Diagnóstico en tiempo real de fallas metalúrgicas (Fatiga Térmica / Creep) según la curva de arranque.</div>
+                    <div class="paso-item"><b>• Protección de Datos:</b> Sistema de seguridad que impide capturas de pantalla para resguardar información confidencial de la planta.</div>
+                    <div class="paso-item"><b>• Gestión de Acceso:</b> Nuevo panel para que el administrador pueda Aceptar o Denegar solicitudes de personal de forma inmediata.</div>
+                </section>
+
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-layer-group"></i> EXPLICACIÓN DE FUNCIONES</h3>
+                    <div class="paso-item"><b>1. HMI Interactivo:</b> Mapa visual de los sistemas (Caldera, Turbina, Ciclo, etc.) con acceso a fichas técnicas de cada equipo.</div>
+                    <div class="paso-item"><b>2. Gestión Offline:</b> Permite cargar datos sin conexión. La app sincroniza los cambios con Firebase automáticamente al detectar internet.</div>
+                    <div class="paso-item"><b>3. Biblioteca Técnica:</b> Repositorio de planos y documentos (Excel/Word/PDF) organizados por área de trabajo.</div>
+                    <div class="paso-item"><b>4. Panel de Control U6:</b> Específico para operadores de banco, con pasos de arranque y cálculo de eficiencia térmica η.</div>
+                </section>
+            </div>
 
             <button class="btn-cerrar" onclick="cerrarManual()">ENTENDIDO</button>
         </div>
