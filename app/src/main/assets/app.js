@@ -635,7 +635,7 @@ function cargarEquiposEdicion() {
                             <b style="color: #ffcc00; font-size: 0.85rem;">${eq.nombre}</b><br>
                             <small style="color: #aaa; font-family: monospace; font-size: 0.7rem;">[ ${eq.tag} ]</small>
                             ${eq.editado_por ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${eq.editado_por.toUpperCase()}</small> <small style="color:#666; font-size:0.6rem;">(${eq.fecha_edicion})</small>` : ''}
-                            ${colaEnv.some(q=>q.tag===eq.tag && q.area===area) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
+                            ${(!navigator.onLine && colaEnv.some(q=>q.tag===eq.tag && q.area===area)) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
@@ -772,7 +772,7 @@ function cargarPlanosEdicionGeneral() {
                         <b style="font-size:0.85rem;">${p.titulo}</b>
                         ${p.autor ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${p.autor.toUpperCase()}</small>` : ''}
                         ${p.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${p.fecha})</small>` : ''}
-                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
+                        ${(!navigator.onLine && isPending) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                     </div>
                     <button onclick="eliminarPlanoGeneral('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.2rem;"><i class="fas fa-times-circle"></i></button>
                 </div>`;
@@ -878,7 +878,7 @@ function cargarDocsEdicion() {
                         <b>${d.titulo}</b>
                         ${d.autor ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${d.autor.toUpperCase()}</small>` : ''}
                         ${d.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${d.fecha})</small>` : ''}
-                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
+                        ${(!navigator.onLine && isPending) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                     </div>
                     <button onclick="eliminarDocumento('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.1rem;"><i class="fas fa-trash-alt"></i></button>
                 </div>`;
