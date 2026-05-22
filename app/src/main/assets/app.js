@@ -845,12 +845,33 @@ function cargarSolicitudesAcceso() {
     database.ref('personal_autorizado').on('value', s => {
         c.innerHTML = ""; const data = s.val() || {};
         Object.keys(data).forEach(id => {
-            if(data[id].estado === 'pendiente') c.innerHTML += `<div class="user-item-modern" style="border-left-color:#f1c40f;"><span><b>${data[id].nombre}</b> (${id})</span><button onclick="procesarSolicitud('${id}', 'activo')" style="background:#2ecc71; color:white; border:none; padding:5px 10px; border-radius:5px; font-weight:bold;">OK</button></div>`;
+            if(data[id].estado === 'pendiente') {
+                c.innerHTML += `
+                <div class="user-item-modern" style="border-left-color:#f1c40f; display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px;">
+                    <span><b>${data[id].nombre}</b> (${id})</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="procesarSolicitud('${id}', 'activo')" style="background:#2ecc71; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer;">
+                            <i class="fas fa-check"></i> OK
+                        </button>
+                        <button onclick="denegarSolicitud('${id}')" style="background:#ff4444; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer;">
+                            <i class="fas fa-times"></i> NO
+                        </button>
+                    </div>
+                </div>`;
+            }
         });
     });
 }
 
-function procesarSolicitud(id, estado) { database.ref('personal_autorizado/'+id+'/estado').set(estado).then(() => notificar("ID AUTORIZADO")); }
+function procesarSolicitud(id, estado) {
+    database.ref('personal_autorizado/'+id+'/estado').set(estado).then(() => notificar("ACCESO CONCEDIDO A " + id));
+}
+
+function denegarSolicitud(id) {
+    if(confirm("¿Deseas denegar y eliminar esta solicitud de acceso?")) {
+        database.ref('personal_autorizado/'+id).remove().then(() => notificar("SOLICITUD ELIMINADA", "error"));
+    }
+}
 
 function crearNuevoEditor() {
     const nom = document.getElementById('nuevo-usuario-nombre').value.toLowerCase().trim();
