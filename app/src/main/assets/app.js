@@ -1314,6 +1314,7 @@ function analizarRendimiento() {
     const eficiencia = mw > 0 ? ((mw * 860) / (fuel * pci)) * 100 : 0;
 
     let reporte = "";
+    let consejos = "";
     let criticidad = "normal";
     let colorHex = "#00ffcc";
 
@@ -1323,6 +1324,24 @@ function analizarRendimiento() {
     else if (tiempo >= 30 && tiempo < 60) faseActual = "PRE-SINCRONIZACIÓN";
     else if (mw > 0 && mw < 580) faseActual = "SUBIDA DE CARGA";
     else if (mw >= 580) faseActual = "OPERACIÓN NOMINAL";
+
+    // --- DETECCIÓN DE FALLAS Y FUGAS ---
+    const presEsperada = (mw / 600) * 165;
+    if (mw > 100 && pres < presEsperada * 0.85) {
+        reporte += "🔍 <b>ALERTA DE FUGA:</b> Presión anormalmente baja para la carga. Verifique estanqueidad en caldera y válvulas de seguridad.<br>";
+        criticidad = "alerta"; colorHex = "#ffcc00";
+    }
+
+    // --- CONSEJOS DE EFICIENCIA ---
+    if (mw > 100) {
+        if (eficiencia < 32) {
+            consejos += "💡 <b>MEJORA EFICIENCIA:</b> Ciclo degradado. Incremente temperatura de vapor principal si es posible y purgue lodos en domo.<br>";
+        } else if (eficiencia < 35) {
+            consejos += "💡 <b>OPTIMIZACIÓN:</b> Ajuste exceso de aire en quemadores para reducir pérdidas por chimenea.<br>";
+        } else {
+            reporte += "⭐ <b>ESTADO ÓPTIMO:</b> Rendimiento térmico excelente.<br>";
+        }
+    }
 
     // --- EVALUACIÓN DE RIESGOS METALÚRGICOS ---
     if (temp > 545 && temp <= 555) {
@@ -1338,6 +1357,15 @@ function analizarRendimiento() {
         criticidad = "peligro"; colorHex = "#ff0000";
     }
 
+    // --- INDICADOR DE BUEN CAMINO ---
+    if (criticidad === "normal") {
+        if (mw > 0 && temp >= 535 && temp <= 542 && vacio < 60) {
+            reporte += "✅ <b>PROCESO EN BUEN CAMINO:</b> Todos los parámetros están en rango ideal.<br>";
+        } else if (mw > 0) {
+            reporte += "🟡 <b>FALTA AJUSTE:</b> Proceso seguro pero fuera de curva de diseño. Estabilice presiones.<br>";
+        }
+    }
+
     if (reporte === "") reporte = "✅ <b>SISTEMA DENTRO DE CURVA:</b> No se detectan riesgos estructurales.";
 
     // --- ACTUALIZAR UI ---
@@ -1349,10 +1377,10 @@ function analizarRendimiento() {
     resDiv.style.borderLeft = `5px solid ${colorHex}`;
     resEfi.innerHTML = mw > 0 ? `EFICIENCIA η: ${eficiencia.toFixed(2)}%` : `ARRANQUE EN PROGRESO`;
     resEfi.style.color = colorHex;
-    resDiag.innerHTML = `<b>FASE: ${faseActual}</b><br>${reporte}`;
+    resDiag.innerHTML = `<b>FASE: ${faseActual}</b><br>${reporte}${consejos ? '<div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">' + consejos + '</div>' : ''}`;
 
     dibujarGraficaArranqueCompleta(tiempo, mw, temp, criticidad);
-    notificar("ANÁLISIS DE ARRANQUE REALIZADO", "exito");
+    notificar("ANÁLISIS TÉCNICO COMPLETADO", "exito");
 }
 
 // ================= CALCULADORA DE CONVERSIÓN TÉCNICA ==================
