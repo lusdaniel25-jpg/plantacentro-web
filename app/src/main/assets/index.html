@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMI - Central Termoeléctrica</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <header class="hmi-header">
+        <button onclick="window.location.href='bienvenida.html'" class="btn-home" style="padding: 8px;">
+            <i class="fas fa-chevron-left"></i> ATRÁS
+        </button>
+        <h1><i class="fas fa-bolt"></i> UNIDAD 6 <i class="fas fa-bolt"></i></h1>
+        <button class="btn-admin-config" onclick="validarAcceso()">
+             <i class="fas fa-user-cog"></i> ADMIN
+        </button>
+    </header>
+
+    <main class="hmi-container">
+        <div class="sistemas-grid">
+            <div class="sistema-card" onclick="filtrarSistema('auxiliares')">
+                <i class="fas fa-water"></i>
+                <h3>AUXILIARES</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('ciclo')">
+                <i class="fas fa-cogs"></i>
+                <h3>CICLO</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('caldera')">
+                <i class="fas fa-fire-alt"></i>
+                <h3>CALDERA</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('turbina')">
+                <i class="fas fa-fan"></i>
+                <h3>TURBINA</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('calderas_auxiliares')">
+                <i class="fas fa-smog"></i>
+                <h3>CALDERAS AUXILIARES</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('externas')">
+                <i class="fas fa-industry"></i>
+                <h3>PLANTAS EXTERNAS</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('instrumentacion')">
+                <i class="fas fa-microchip"></i>
+                <h3>INSTRUMENTACIÓN</h3>
+            </div>
+            <div class="sistema-card" onclick="filtrarSistema('contra_incendio')">
+                <i class="fas fa-fire-extinguisher"></i>
+                <h3>SIST. CONTRA INCENDIO</h3>
+            </div>
+        </div>
+
+        <div id="card-operacion-especial" class="sistema-card" onclick="abrirSeccionOperacion()" style="display: none; border-color: #00ffcc; background: rgba(0, 255, 204, 0.1); margin-top: 15px; padding: 25px; align-items: center; justify-content: center; gap: 20px;">
+            <i class="fas fa-microchip" style="color: #00ffcc; font-size: 2rem;"></i>
+            <h3 style="color: #00ffcc; margin: 0; font-size: 1.2rem; letter-spacing: 2px;">PROTOCOLO DE CONTROL OPERATIVO - U6</h3>
+        </div>
+
+        <!-- MANUAL DE FUNCIONES DEL ÁREA -->
+        <div id="contenedor-manual-area" style="display:none; margin-top: 25px; background: rgba(255, 204, 0, 0.05); padding: 18px; border-radius: 12px; border: 1px solid rgba(255, 204, 0, 0.2); box-shadow: inset 0 0 15px rgba(255, 204, 0, 0.05);">
+            <h3 style="color: #ffcc00; font-size: 0.95rem; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255, 204, 0, 0.2); padding-bottom: 8px;">
+                <i class="fas fa-file-contract"></i> MANUAL DE FUNCIONES Y DEBERES
+            </h3>
+            <div id="texto-manual-area" style="font-size: 0.8rem; line-height: 1.6; color: #eee; white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- DOCUMENTOS TÉCNICOS (EXCEL / WORD) -->
+        <div id="contenedor-docs-area" style="display:none; margin-top: 20px;">
+            <h3 style="color: #00ccff; font-size: 0.95rem; margin-bottom: 15px; border-left: 4px solid #00ccff; padding-left: 12px; text-transform: uppercase;">
+                <i class="fas fa-file-download"></i> DOCUMENTOS Y MANUALES (EXCEL/WORD)
+            </h3>
+            <div id="lista-docs-area" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- BUSCADOR DE EQUIPOS -->
+        <div id="contenedor-buscador" style="margin-top: 20px; display: none;">
+            <div class="admin-form" style="position: relative;">
+                <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #ffcc00; opacity: 0.7;"></i>
+                <input type="text" id="input-busqueda" placeholder="Buscar por TAG o Nombre (Ej: Bomba, 06PAB...)" onkeyup="filtrarPorTexto()" style="padding-left: 45px; border-radius: 50px; background: rgba(255,255,255,0.05); border: 1px solid #444; font-size: 0.9rem;">
+            </div>
+            <div id="contador-resultados" style="font-size: 0.7rem; color: #ffcc00; margin-top: 5px; margin-left: 15px; font-weight: bold; text-transform: uppercase;"></div>
+        </div>
+
+        <div class="mapa-interactivo" id="mapa-equipos">
+            <p class="mensaje">Seleccione un sistema para inspeccionar ...</p>
+        </div>
+
+
+        <!-- SECCIÓN DE PLANOS DEL ÁREA -->
+        <div id="contenedor-planos-area" style="display:none; margin-top: 30px;">
+            <h3 style="color: #ffcc00; font-size: 0.95rem; margin-bottom: 15px; border-left: 4px solid #ffcc00; padding-left: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                <i class="fas fa-map"></i> PLANOS Y DIAGRAMAS TÉCNICOS
+            </h3>
+            <div id="lista-planos-area" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-info" class="modal-hmi">
+        <div class="modal-content">
+            <div id="info-tecnica"></div>
+            <button class="btn-cerrar" onclick="cerrarModal()">CERRAR FICHA</button>
+        </div>
+    </div>
+
+    <!-- SECCIÓN ESPECIAL OPERACIÓN -->
+    <div id="modal-operacion-especial" class="modal-hmi" style="display: none;">
+        <div class="modal-content" style="max-width: 600px; border-color: #00ffcc;">
+            <header style="text-align: center; border-bottom: 2px solid #00ffcc; padding-bottom: 15px; margin-bottom: 20px;">
+                <h2 style="color: #00ffcc; margin: 0;"><i class="fas fa-terminal"></i> PANEL DE CONTROL U6</h2>
+                <button onclick="editarParametrosOperacion()" class="btn-admin-config" style="font-size: 0.7rem; padding: 5px 10px; margin-top: 10px;">
+                    <i class="fas fa-edit"></i> CONFIGURAR PROTOCOLOS
+                </button>
+            </header>
+
+            <div id="display-operacion">
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-list-ol"></i> PASOS SECUENCIALES DE ARRANQUE</h3>
+                    <div id="op-pasos-arranque-lista" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Se llena con divs de pasos -->
+                    </div>
+                </section>
+
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-chart-line"></i> CONDICIONES EN SERVICIO</h3>
+                    <div id="op-condiciones" class="paso-item" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- CALCULADORA TERMODINÁMICA Y ANÁLISIS DE RENDIMIENTO -->
+            <section class="manual-seccion" style="background: rgba(0, 255, 204, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(0, 255, 204, 0.2);">
+                <h3 style="color: #00ffcc;"><i class="fas fa-microchip"></i> ANALIZADOR DE RENDIMIENTO TÉRMICO</h3>
+
+                <!-- Gráfica Dinámica de Curva de Arranque -->
+                <div style="background: #000; border-radius: 8px; border: 1px solid #333; margin-bottom: 15px; padding: 10px;">
+                    <h4 style="color: #00ffcc; font-size: 0.65rem; margin-top: 0; display: flex; justify-content: space-between;">
+                        <span>CURVA DE ARRANQUE (DINÁMICA)</span>
+                        <span id="txt-fase-arranque" style="color: #ffcc00;">FASE: ESTABILIZACIÓN</span>
+                    </h4>
+                    <canvas id="grafica-arranque" style="width: 100%; height: 120px;"></canvas>
+                </div>
+
+                <div class="admin-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div>
+                        <label style="color: #00ffcc; font-size: 0.55rem;">GENERACIÓN (MW):</label>
+                        <input type="number" id="calc-mw" placeholder="0" style="padding: 6px; font-size: 0.8rem;">
+                    </div>
+                    <div>
+                        <label style="color: #00ffcc; font-size: 0.55rem;">FLUJO FUEL (kg/h):</label>
+                        <input type="number" id="calc-fuel" placeholder="0" style="padding: 6px; font-size: 0.8rem;">
+                    </div>
+                    <div>
+                        <label style="color: #00ffcc; font-size: 0.55rem;">PRESIÓN VAPOR (bar):</label>
+                        <input type="number" id="calc-presion" placeholder="160" style="padding: 6px; font-size: 0.8rem;">
+                    </div>
+                    <div>
+                        <label style="color: #00ffcc; font-size: 0.55rem;">TEMP. VAPOR (°C):</label>
+                        <input type="number" id="calc-temp" placeholder="540" style="padding: 6px; font-size: 0.8rem;">
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label style="color: #00ffcc; font-size: 0.55rem;">VACÍO CONDENSADOR (mbar):</label>
+                        <input type="number" id="calc-vacio" placeholder="50" style="padding: 6px; font-size: 0.8rem;">
+                    </div>
+                </div>
+
+                <button onclick="analizarRendimiento()" class="btn-guardar-admin" style="background: #00ffcc; color: black; margin-top: 15px; padding: 10px; font-weight: bold; letter-spacing: 1px;">
+                    <i class="fas fa-sync-alt"></i> ANALIZAR UNIDAD 6
+                </button>
+
+                <!-- Resultados del Análisis -->
+                <div id="diagnostico-rendimiento" style="margin-top: 15px; display: none;">
+                    <div id="res-eficiencia" style="text-align: center; font-weight: bold; font-size: 1.1rem; color: #00ffcc; border-bottom: 1px solid rgba(0,255,204,0.3); padding-bottom: 5px;"></div>
+                    <div id="res-diagnostico" style="margin-top: 10px; font-size: 0.75rem; line-height: 1.4;"></div>
+                </div>
+            </section>
+
+            <button class="btn-cerrar" onclick="cerrarSeccionOperacion()">VOLVER AL HMI</button>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR PARÁMETROS (PROTEGIDO) -->
+    <div id="modal-edit-op" class="modal-hmi" style="display: none;">
+        <div class="modal-content admin-card-full" style="max-width: 500px; border-color: #00ffcc;">
+            <h2 style="color: #00ffcc;"><i class="fas fa-lock-open"></i> EDITOR DE PROTOCOLOS</h2>
+            <div class="admin-form">
+                <!-- ACORDEÓN PARA PROTOCOLOS -->
+                <button class="accordion-admin" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('active')">
+                    PASOS DE ARRANQUE Y LÍMITES <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="panel-admin">
+                    <label>GESTIÓN DE PASOS DE ARRANQUE:</label>
+                    <div id="contenedor-pasos-edit" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
+                    <button onclick="agregarInputPaso()" class="btn-guardar-admin" style="background: #333; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; margin-bottom: 20px;">
+                        <i class="fas fa-plus"></i> AGREGAR SIGUIENTE PASO
+                    </button>
+
+                    <label>PARÁMETROS DE DISEÑO / LÍMITES:</label>
+                    <div class="input-row">
+                        <div><label>PRESIÓN (bar):</label><input type="text" id="edit-op-presion"></div>
+                        <div><label>FLUJO (t/h):</label><input type="text" id="edit-op-flujo"></div>
+                    </div>
+                    <div class="input-row">
+                        <div><label>NIVEL DOMO (%):</label><input type="text" id="edit-op-nivel"></div>
+                        <div><label>MW MAX:</label><input type="text" id="edit-op-mw"></div>
+                    </div>
+                </div>
+
+                <!-- ACORDEÓN PARA PLANOS (SOLO MAESTRO) -->
+                <div id="edit-planos-container">
+                    <button class="accordion-admin" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('active')">
+                        GESTIÓN DE PLANOS TÉCNICOS <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="panel-admin">
+                        <label>TÍTULO DEL PLANO:</label>
+                        <input type="text" id="input-plano-titulo" placeholder="Ej: Diagrama de Tuberías P&ID">
+                        <label style="margin-top:10px;">FOTO DEL PLANO:</label>
+                        <input type="file" id="input-plano-foto" accept="image/*" style="background:#0a0a0a; color:white; padding:10px; width:100%; border-radius:8px; border:1px solid #333;">
+                        <div id="preview-plano" style="margin-top:10px; display:none;"><img id="img-preview-plano" style="width:100%; border-radius:8px; border:1px solid #00ffcc;"></div>
+                        <button onclick="guardarPlano()" class="btn-guardar-admin" style="background:#27ae60; margin-top:15px;"><i class="fas fa-upload"></i> SUBIR PLANO A LA NUBE</button>
+                        <div id="lista-planos-edit" style="margin-top:20px; display:flex; flex-direction:column; gap:8px;"></div>
+                    </div>
+                </div>
+
+                <label style="margin-top:20px;">CLAVE DE AUTORIZACIÓN:</label>
+                <input type="password" id="auth-op-pass" placeholder="Confirmar identidad">
+
+                <button onclick="guardarParametrosOperacion()" class="btn-guardar-admin" style="background: #00ffcc; color: black; margin-top: 20px;">
+                    ACTUALIZAR DATOS MAESTROS
+                </button>
+                <button onclick="document.getElementById('modal-edit-op').style.display='none'" style="background: transparent; color: #ff4444; border: none; width: 100%; margin-top: 10px; cursor: pointer;">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN FLOTANTE MANUAL DE USO -->
+    <div id="btn-manual-flotante" class="btn-manual-flotante" onclick="abrirManual()">
+        <i class="fas fa-book-reader"></i>
+    </div>
+
+    <!-- MODAL MANUAL DE USO DETALLADO -->
+    <div id="modal-manual" class="modal-hmi" style="display: none;">
+        <div class="modal-content manual-content">
+            <header class="manual-header">
+                <img src="IMG_20250329_165743.jpg" class="manual-autor-img" alt="Luis Gonzalez">
+                <h2>MANUAL TÉCNICO DE GESTIÓN OPERATIVA - U6</h2>
+                <button class="btn-cerrar-mini" onclick="cerrarManual()">&times;</button>
+            </header>
+
+            <section class="manual-seccion">
+                <h3><i class="fas fa-bullseye"></i> OBJETIVO DEL PROYECTO</h3>
+                <p>Esta aplicación ha sido diseñada para eliminar la dependencia de manuales físicos y mejorar la respuesta ante fallas en la <b>Unidad 6 de Planta Centro</b>. El objetivo es centralizar fichas técnicas, fotos de placas y protocolos de operación en un solo dispositivo móvil.</p>
+            </section>
+
+            <section class="manual-seccion">
+                <h3><i class="fas fa-microchip"></i> ESPECIFICACIONES TÉCNICAS</h3>
+                <div class="paso-item">
+                    <b>• Arquitectura de Datos:</b> Sincronización híbrida mediante Firebase y LocalStorage <b>(Significa que la app guarda la información en internet y en el teléfono al mismo tiempo para que siempre abra rápido).</b>
+                </div>
+                <div class="paso-item">
+                    <b>• Motor de IA:</b> Integración con el motor Llama-3.1 <b>(Es un cerebro inteligente que entiende tus preguntas y te ayuda a saber cómo reparar los equipos).</b>
+                </div>
+                <div class="paso-item">
+                    <b>• Procesamiento de Imágenes:</b> Compresión adaptativa de fotos HD <b>(Las fotos se ven claritas pero no ocupan mucho espacio ni ponen pesado el celular).</b>
+                </div>
+                <div class="paso-item">
+                    <b>• Estrategia Offline-First:</b> Mecanismo de cola de subida <b>(Si no hay señal en la planta, la app guarda lo que hiciste y lo sube solo apenas consigas internet).</b>
+                </div>
+                <div class="paso-item">
+                    <b>• Seguridad y Roles:</b> Control de acceso segregado <b>(Luis controla quién tiene permiso para borrar y quién solo puede cargar o editar información).</b>
+                </div>
+            </section>
+
+            <section class="manual-seccion">
+                <h3><i class="fas fa-book-open"></i> GUÍA DE USO OPERATIVO</h3>
+                <div class="paso-item"><b>1. Selección de Entorno:</b> Identifique su área (Mecánica/Eléctrica/Operaciones) para activar las herramientas especializadas.</div>
+                <div class="paso-item"><b>2. Auditoría de Equipos:</b> Navegue por sistemas y acceda a fichas técnicas para validar Alfanumérico y protocolos de operación adecuada.</div>
+                <div class="paso-item"><b>3. Control Operativo:</b> (Solo Operaciones) Acceda al panel de pasos secuenciales y condiciones en servicio para el arranque de la unidad.</div>
+                <div class="paso-item"><b>4. Calculadora Técnica:</b> Use la herramienta integrada para determinar la eficiencia térmica según el flujo de combustible (kg/h).</div>
+                <div class="paso-item"><b>5. Registro en Campo:</b> Use el panel Admin para cargar incidencias. Los usuarios validados pueden entrar sin internet (Offline).</div>
+            </section>
+
+            <section class="manual-seccion bio-seccion">
+                <div class="bio-card-manual">
+                    <h3>PERFIL DEL AUTOR</h3>
+                    <p><strong>Tec. Luis Gonzalez</strong></p>
+                    <p>Operador HMI de Planta Centro. Innovador en soluciones digitales para la industria eléctrica. TSU en Informática.</p>
+
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                        <a href="https://wa.me/584129431568" target="_blank" style="background: #25d366; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fab fa-whatsapp"></i> WHATSAPP
+                        </a>
+                        <a href="mailto:lusdaniel25@gmail.com" style="background: #ea4335; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-envelope"></i> CORREO
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <button class="btn-cerrar" onclick="cerrarManual()">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <!-- PERSONAJE OPERADOR IA (HOLOGRAMA) -->
+    <div id="btn-ia-flotante" class="btn-ia-flotante" onclick="abrirChatIA()">
+        <div class="ia-holograma-box" id="ia-saludo">
+            <div class="ia-personaje-img">
+                <i class="fas fa-helmet-safety"></i>
+            </div>
+            <div class="ia-mensaje-alerta">
+                <b>ING. ASISTENTE</b>
+                <span>¡Listo para la reparación! Toca aquí para dudas.</span>
+            </div>
+        </div>
+        <div class="ia-icono-base">
+            <i class="fas fa-robot"></i>
+        </div>
+    </div>
+
+    <!-- MODAL DE CHAT IA -->
+    <div id="modal-chat-ia" class="modal-hmi">
+        <div class="modal-content chat-ia-content">
+            <div class="chat-header">
+                <h3><i class="fas fa-brain"></i> Consultor Técnico IA</h3>
+                <button class="btn-cerrar-mini" onclick="cerrarChatIA()">&times;</button>
+            </div>
+            <div id="chat-mensajes" class="chat-mensajes">
+                <div class="mensaje-ia">Hola, soy tu asistente de Planta Centro. ¿En qué reparación o ensamble te puedo orientar hoy?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="input-pregunta-ia" placeholder="Escribe tu duda técnica aquí...">
+                <button onclick="enviarPreguntaIA()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ACCESO PERSONALIZADO (LOGIN) -->
+    <div id="modal-login" class="modal-hmi" style="display: none;">
+        <div class="modal-content admin-card-full" style="max-width: 380px; text-align: center;">
+            <i class="fas fa-user-shield" style="font-size: 3.5rem; color: #ffcc00; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(255,204,0,0.5));"></i>
+            <h2 style="font-size: 1.1rem; letter-spacing: 2px;">ACCESO RESTRINGIDO</h2>
+            <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 25px;">Por favor, me indicas tu usuario y clave:</p>
+
+            <div class="admin-form">
+                <div id="login-error" style="display: none; background: rgba(255, 68, 68, 0.1); border: 1px solid #ff4444; color: #ff4444; padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 15px; font-weight: bold;"></div>
+
+                <div class="input-group">
+                    <label>IDENTIFICACIÓN:</label>
+                    <input type="text" id="login-user" placeholder="Nombre de usuario" style="text-align: center; text-transform: lowercase;">
+                </div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label>CLAVE TÉCNICA:</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="login-pass" placeholder="••••••••" style="text-align: center; padding-right: 45px;">
+                        <i class="fas fa-eye toggle-password" id="toggle-login-pass" onclick="togglePasswordVisibility('login-pass', 'toggle-login-pass')"></i>
+                    </div>
+                </div>
+
+                <button onclick="confirmarAcceso()" class="btn-guardar-admin" style="margin-top: 30px;">
+                    <i class="fas fa-unlock-alt"></i> ENTRAR AL SISTEMA
+                </button>
+
+                <button onclick="cerrarLogin()" style="background: transparent; color: #ff4444; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; font-size: 0.8rem; text-transform: uppercase;">
+                    CANCELAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

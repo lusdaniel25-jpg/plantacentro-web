@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Unidad 6</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body class="body-presentacion">
+
+    <!-- Fondo con Imagen de Planta Centro -->
+    <div class="background-planta">
+        <div class="capa-oscura"></div>
+    </div>
+
+    <!-- Encabezado con logos pequeños -->
+    <header class="header-top">
+        <img src="CHINA.png" class="bandera-mini" alt="China">
+        <img src="LOGOCORPO.png" class="logo-mini" alt="Corpoelec Unidad 6">
+        <img src="VENEZU.png" class="bandera-mini" alt="Venezuela">
+    </header>
+
+    <!-- Contenido Central -->
+    <div class="content-center">
+        <h1 class="glow-text">UNIDAD 6</h1>
+        <h2 style="color: #ffcc00; font-size: 1.5rem; margin-top: -10px; font-weight: 800; text-shadow: 0 0 10px rgba(255,204,0,0.5);">600 MW</h2>
+        <p class="desc-planta">Planta Centro - Gestión Operativa</p>
+        <button class="btn-abrir-cortina" onclick="toggleCortina()">
+            <i class="fas fa-chevron-up"></i> SELECCIONAR ÁREA DE ACCESO
+        </button>
+    </div>
+
+    <!-- BOTÓN ACTUALIZAR (Solo aparece cuando hay aviso) - Movido abajo -->
+    <div style="position: fixed; bottom: 100px; width: 100%; text-align: center; z-index: 90;">
+        <button id="btn-descargar-bienvenida" class="btn-descargar-app" onclick="descargarApp()" style="display: none;">
+            <i class="fas fa-download"></i> ACTUALIZAR
+        </button>
+    </div>
+
+    <!-- BOTONES FLOTANTES IZQUIERDA -->
+    <div id="btn-compartir-flotante" class="btn-compartir-flotante" onclick="compartirApp()">
+        <i class="fas fa-share-alt"></i>
+    </div>
+
+    <!-- BOTÓN FLOTANTE MANUAL DE USO -->
+    <div id="btn-manual-flotante" class="btn-manual-flotante" onclick="abrirManual()">
+        <i class="fas fa-book-reader"></i>
+    </div>
+
+    <!-- MODAL MANUAL DE USO DETALLADO -->
+    <div id="modal-manual" class="modal-hmi" style="display: none;">
+        <div class="modal-content manual-content" style="max-width: 550px;">
+            <header class="manual-header">
+                <img src="IMG_20250329_165743.jpg" class="manual-autor-img" alt="Luis Gonzalez">
+                <h2 style="font-size: 1.2rem; color: #2ecc71;">MANUAL TÉCNICO OPERATIVO U6</h2>
+                <p style="font-size: 0.7rem; color: #aaa;">SISTEMA DE GESTIÓN INDUSTRIAL DIGITAL</p>
+                <button class="btn-cerrar-mini" onclick="cerrarManual()">&times;</button>
+            </header>
+
+            <div style="text-align: left; padding: 10px; max-height: 60vh; overflow-y: auto;">
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-bullseye"></i> OBJETIVO</h3>
+                    <p>Centralizar la gestión técnica de la <b>Unidad 6</b>, eliminando la dependencia de documentos físicos y optimizando la toma de decisiones mediante datos en tiempo real y asistencia inteligente.</p>
+                </section>
+
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-check-double"></i> GUÍA DE USO CORRECTO</h3>
+                    <div class="paso-item"><b>1. Identificación:</b> Use siempre su identificación real. El sistema registra quién realiza cada cambio para fines de auditoría técnica.</div>
+                    <div class="paso-item"><b>2. Carga de Datos:</b> Asegúrese de que el TAG (Alfanumérico) sea exacto. El sistema bloqueará duplicados para evitar errores de inventario.</div>
+                    <div class="paso-item"><b>3. Operación Offline:</b> Si trabaja en áreas sin señal, guarde sus cambios normalmente. No cierre la app hasta que vea el mensaje "SINCRO COMPLETA" al recuperar internet.</div>
+                    <div class="paso-item"><b>4. Análisis Térmico:</b> Use la calculadora de eficiencia solo con valores reales de sala de control para obtener un diagnóstico veraz.</div>
+                </section>
+
+                <section class="manual-seccion">
+                    <h3><i class="fas fa-lock"></i> 1. ACCESO Y SEGURIDAD</h3>
+                    <div class="paso-item"><b>• Identificación:</b> Al tocar un área, ingrese su Cédula o Ficha. Si no está en la base de datos, use el botón "SOLICITAR ACCESO".</div>
+                    <div class="paso-item"><b>• Roles:</b> El <b>Master (Luis)</b> gestiona usuarios y borrados. Los <b>Editores</b> actualizan fichas de equipos.</div>
+                </section>
+
+                <section class="manual-seccion" style="border: 1px solid #00ffcc; padding: 10px; border-radius: 10px; background: rgba(0,255,204,0.05);">
+                    <h3 style="color: #00ffcc;"><i class="fas fa-microchip"></i> 2. CONTROL OPERATIVO</h3>
+                    <div class="paso-item"><b>• Protocolos:</b> Pasos secuenciales de arranque y límites de diseño actualizables.</div>
+                    <div class="paso-item"><b>• Calculadora TSU:</b> Determina la eficiencia térmica real y analiza fallas (Presión, Temp, Vacío) dando sugerencias técnicas.</div>
+                </section>
+
+                <section class="manual-seccion" style="border: 1px solid #3498db; padding: 10px; border-radius: 10px; background: rgba(52,152,219,0.05);">
+                    <h3 style="color: #3498db;"><i class="fas fa-wifi-slash"></i> 3. SISTEMA OFFLINE</h3>
+                    <div class="paso-item"><b>• Carga/Borrado:</b> Todo lo que haga sin señal se guarda localmente y se sincroniza automáticamente al detectar red (Reloj cada 10s).</div>
+                </section>
+
+                <section class="manual-seccion bio-seccion" style="margin-top: 20px;">
+                    <div class="bio-card-manual">
+                        <h3 style="color: #ffcc00;">SOPORTE Y CONTACTO</h3>
+                        <p style="font-size: 0.8rem;">Desarrollado por <b>Tec. Luis Gonzalez</b> para Planta Centro.</p>
+                        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                            <a href="https://wa.me/584129431568" target="_blank" style="background: #25d366; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fab fa-whatsapp"></i> WHATSAPP
+                            </a>
+                            <a href="mailto:lusdaniel25@gmail.com" style="background: #ea4335; color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-envelope"></i> CORREO
+                            </a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <button class="btn-cerrar" onclick="cerrarManual()" style="margin-top: 20px;">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <!-- Footer de Creador -->
+    <div class="footer-creador" onclick="abrirBio()">
+        <span id="app-version-display" style="display: block; font-size: 0.6rem; opacity: 0.7; margin-bottom: 3px;">VERSIÓN 1.0</span>
+        Creado por: <strong>Tec. Luis Gonzalez</strong>
+    </div>
+
+    <!-- Modal de Biografía (Compatible con el manual) -->
+    <div id="modal-bio" class="modal-hmi" style="display: none;">
+        <div class="modal-content" style="text-align: center;">
+            <img src="IMG_20250329_165743.jpg" alt="Tec. Luis Gonzalez"
+                style="width: 150px; height: 150px; border-radius: 50%; border: 3px solid #ffcc00; margin-bottom: 15px; object-fit: cover;">
+            <h2 style="color: #ffcc00; margin-bottom: 10px;">Tec. Luis Gonzalez</h2>
+            <p style="font-size: 0.9rem; line-height: 1.5; color: #ddd; margin-bottom: 20px;">
+                Técnico y Desarrollador de la aplicación, se desempeña como Operador de equipos principales
+                <strong>Planta Centro HMI</strong>.
+                Apasionado por la tecnología industrial, la automatización y la mejora continua de los procesos
+                operativos, tsu en informatica- contacto 0412 9431568 correo: lusdaniel25@gmail.com.
+            </p>
+            <button class="btn-cerrar" onclick="cerrarBio()">CERRAR</button>
+        </div>
+    </div>
+
+    <!-- LA CORTINA DE ROLES -->
+    <div id="cortina-roles" class="cortina">
+        <div class="barra-arrastre" onclick="toggleCortina()"></div>
+        <h3 class="titulo-cortina">CUAL ES TU AREA DE TRABAJO</h3>
+
+        <div class="grid-roles">
+            <div class="rol-item" onclick="validarAccesoArea('Operaciones')"><i class="fas fa-tools"></i><span>Operaciones</span></div>
+            <div class="rol-item" onclick="validarAccesoArea('Plantas-externas')"><i class="fas fa-industry"></i><span>Plantas-Externas</span></div>
+            <div class="rol-item mecanico" onclick="validarAccesoArea('mecanico')"><i class="fas fa-wrench"></i><span>Mecánico</span></div>
+            <div class="rol-item electrico" onclick="validarAccesoArea('electricista')"><i class="fas fa-bolt"></i><span>Electricista</span></div>
+            <div class="rol-item" onclick="validarAccesoArea('instrumentacion')" style="border-color: #00ccff;"><i class="fas fa-microchip"></i><span>Instrumentación</span></div>
+            <div class="rol-item" onclick="validarAccesoArea('contra-incendio')" style="border-color: #ff4444;"><i class="fas fa-fire-extinguisher"></i><span>Sist. Contra Incendio</span></div>
+            <div class="rol-item admin" onclick="validarAcceso()" style="grid-column: span 2; border-color: #ffcc00; background: rgba(255, 204, 0, 0.05); padding: 15px;"><i class="fas fa-user-shield"></i><span>Admin</span></div>
+        </div>
+    </div>
+
+    <!-- MODAL IDENTIFICACIÓN DE PERSONAL -->
+    <div id="modal-id-acceso" class="modal-hmi" style="display: none;">
+        <div class="modal-content admin-card-full" style="max-width: 380px; text-align: center;">
+            <i class="fas fa-id-card" style="font-size: 3.5rem; color: #ffcc00; margin-bottom: 20px;"></i>
+            <h2 style="font-size: 1.1rem; letter-spacing: 2px;">IDENTIFICACIÓN DE PERSONAL</h2>
+            <p id="txt-rol-seleccionado" style="font-size: 0.8rem; color: #ffcc00; font-weight: bold; text-transform: uppercase; margin-bottom: 15px;"></p>
+
+            <div class="admin-form" id="wrapper-verificar-id">
+                <label for="input-id-acceso">IDENTIFICACIÓN (CÉDULA O USUARIO ADMIN):</label>
+                <input type="text" id="input-id-acceso" placeholder="Ingrese su identificación" style="text-align: center; font-size: 1.2rem; letter-spacing: 3px;">
+
+                <div id="msg-error-id" style="display: none; color: #ff4444; font-size: 0.8rem; margin-top: 10px; font-weight: bold;"></div>
+
+                <button onclick="verificarIdentidad()" class="btn-guardar-admin" style="margin-top: 25px;">
+                    <i class="fas fa-sign-in-alt"></i> VERIFICAR ACCESO
+                </button>
+
+                <div style="margin-top: 15px;">
+                    <button id="btn-activar-solicitud" onclick="mostrarFormSolicitud()" style="background: none; border: 1px dashed #ffcc00; color: #ffcc00; padding: 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; width: 100%;">
+                        ¿No estás registrado? SOLICITAR ACCESO
+                    </button>
+                </div>
+            </div>
+
+            <!-- NUEVO FORMULARIO DE SOLICITUD -->
+            <div class="admin-form" id="wrapper-solicitar-acceso" style="display: none;">
+                <p style="font-size: 0.85rem; color: #ffcc00; margin-bottom: 15px; font-weight: bold;">FORMULARIO DE SOLICITUD DE ACCESO</p>
+
+                <label for="input-nombre-solicitud">NOMBRE COMPLETO:</label>
+                <input type="text" id="input-nombre-solicitud" placeholder="Ej: Juan Pérez">
+
+                <label for="input-id-solicitud" style="margin-top: 15px;">CÉDULA DE IDENTIDAD:</label>
+                <input type="number" id="input-id-solicitud" placeholder="Ej: 12345678">
+
+                <button onclick="enviarSolicitudAcceso()" class="btn-guardar-admin" style="background: #27ae60; margin-top: 25px; font-size: 0.85rem;">
+                    <i class="fas fa-paper-plane"></i> ENVIAR SOLICITUD A LUIS
+                </button>
+
+                <button onclick="volverAVerificar()" style="background: none; border: none; color: #aaa; margin-top: 15px; cursor: pointer; font-size: 0.75rem; text-decoration: underline;">
+                    VOLVER A VERIFICACIÓN
+                </button>
+            </div>
+
+            <button onclick="cerrarModalID()" style="background: transparent; color: #ff4444; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; font-size: 0.8rem;">
+                CANCELAR
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE ACCESO PERSONALIZADO (LOGIN) -->
+    <div id="modal-login" class="modal-hmi" style="display: none;">
+        <div class="modal-content admin-card-full" style="max-width: 380px; text-align: center;">
+            <i class="fas fa-user-shield" style="font-size: 3.5rem; color: #ffcc00; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(255,204,0,0.5));"></i>
+            <h2 style="font-size: 1.1rem; letter-spacing: 2px;">ACCESO RESTRINGIDO</h2>
+            <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 25px;">Por favor, me indicas tu usuario y clave:</p>
+
+            <div class="admin-form">
+                <div id="login-error" style="display: none; background: rgba(255, 68, 68, 0.1); border: 1px solid #ff4444; color: #ff4444; padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 15px; font-weight: bold;"></div>
+
+                <div class="input-group">
+                    <label for="login-user">IDENTIFICACIÓN:</label>
+                    <input type="text" id="login-user" placeholder="Nombre de usuario" style="text-align: center; text-transform: lowercase;">
+                </div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label for="login-pass">CLAVE TÉCNICA:</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="login-pass" placeholder="••••••••" style="text-align: center; padding-right: 45px;">
+                        <i class="fas fa-eye toggle-password" id="toggle-login-pass" onclick="togglePasswordVisibility('login-pass', 'toggle-login-pass')"></i>
+                    </div>
+                </div>
+
+                <button onclick="confirmarAcceso()" class="btn-guardar-admin" style="margin-top: 30px;">
+                    <i class="fas fa-unlock-alt"></i> ENTRAR AL SISTEMA
+                </button>
+
+                <button onclick="cerrarLogin()" style="background: transparent; color: #ff4444; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; font-size: 0.8rem; text-transform: uppercase;">
+                    CANCELAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function toggleCortina() {
+            document.getElementById('cortina-roles').classList.toggle('active');
+        }
+        function entrarArea(area) {
+            localStorage.setItem('area_actual', area);
+            window.location.href = "index.html";
+        }
+        function abrirBio() {
+            document.getElementById('modal-bio').style.display = 'flex';
+        }
+        function cerrarBio() {
+            document.getElementById('modal-bio').style.display = 'none';
+        }
+        // Funciones para el manual ya que app.js se encarga de ellas si se vincula correctamente
+        function abrirManual() { document.getElementById('modal-manual').style.display = 'flex'; }
+        function cerrarManual() { document.getElementById('modal-manual').style.display = 'none'; }
+    </script>
+</body>
+
+</html>

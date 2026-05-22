@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - U6</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="body-admin">
+    <!-- Fondo fijo para Admin -->
+    <div class="background-planta">
+        <div class="capa-oscura" style="background: rgba(0,0,0,0.85);"></div>
+    </div>
+
+    <header class="hmi-header">
+        <button onclick="window.location.href='index.html'" class="btn-home" style="padding: 8px;">
+            <i class="fas fa-chevron-left"></i> VOLVER
+        </button>
+        <h1 id="txt-saludo-admin">PANEL ADMINISTRATIVO</h1>
+        <div style="width: 40px;"></div> <!-- Espaciador para centrar el título -->
+    </header>
+
+    <main class="admin-container">
+        <!-- MENSAJE DE ESTADO GLOBAL -->
+        <div id="user-status-msg" style="display: none; background: rgba(255, 204, 0, 0.1); border: 1px solid #ffcc00; color: #ffcc00; padding: 15px; border-radius: 12px; font-size: 0.85rem; margin-bottom: 15px; font-weight: bold; text-align: center; position: sticky; top: 10px; z-index: 1000; backdrop-filter: blur(10px);"></div>
+
+        <!-- 1. ACORDEÓN: GESTIÓN DE EQUIPOS (CARGA Y LISTADO) -->
+        <button class="accordion-admin" onclick="toggleAccordion(this)">
+            <span><i class="fas fa-tools"></i> GESTIÓN DE EQUIPOS</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="panel-admin">
+            <div class="admin-form">
+                <h3 style="color: #ffcc00; font-size: 0.9rem; margin-bottom: 15px;"><i class="fas fa-plus-circle"></i> NUEVO REGISTRO / ACTUALIZAR</h3>
+                <label>SISTEMA / ÁREA:</label>
+                <select id="input-area" onchange="cargarEquiposEdicion()">
+                    <option value="auxiliares">AUXILIARES</option>
+                    <option value="ciclo">CICLO</option>
+                    <option value="caldera">CALDERA</option>
+                    <option value="turbina">TURBINA</option>
+                    <option value="calderas_auxiliares">CALDERAS AUXILIARES</option>
+                    <option value="externas">PLANTAS EXTERNAS</option>
+                    <option value="instrumentacion">INSTRUMENTACIÓN</option>
+                    <option value="contra_incendio">SIST. CONTRA INCENDIO</option>
+                </select>
+
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>ALFANUMÉRICO (TAG):</label>
+                        <input type="text" id="input-tag" placeholder="Ej: 06PAB01">
+                    </div>
+                    <div class="input-group">
+                        <label>NOMBRE EQUIPO:</label>
+                        <input type="text" id="input-nombre" placeholder="Ej: Bomba de Agua">
+                    </div>
+                </div>
+
+                <label>FOTOS TÉCNICAS (MÁX 2):</label>
+                <input type="file" id="input-archivo-foto" accept="image/*" multiple style="display: none;">
+                <div class="upload-area" onclick="document.getElementById('input-archivo-foto').click()">
+                    <i class="fas fa-camera"></i>
+                    <span id="nombre-archivo-seleccionado">SELECCIONAR DE GALERÍA</span>
+                </div>
+                <div id="preview-container" style="display:flex; gap: 10px; margin-top:10px; justify-content:center; flex-wrap: wrap;">
+                    <!-- Se llena dinámicamente desde app.js -->
+                </div>
+
+                <label style="margin-top:15px;">ESPECIFICACIONES TÉCNICAS:</label>
+                <textarea id="input-info" rows="4" placeholder="Indique presiones, temperaturas, potencias..."></textarea>
+
+                <label>PROTOCOLO DE OPERACIÓN:</label>
+                <textarea id="input-operacion" rows="4" placeholder="Pasos para arranque o maniobra segura..."></textarea>
+
+                <label>UBICACIÓN FÍSICA:</label>
+                <input type="text" id="input-ubicacion" placeholder="Ej: Planta 0.00 / Sala de Bombas">
+
+                <div style="display: flex; gap: 10px; margin-top: 20px; margin-bottom: 30px;">
+                    <button class="btn-guardar-admin" onclick="procesarCarga()">
+                        <i class="fas fa-save"></i> GUARDAR DATOS
+                    </button>
+                    <button class="btn-guardar-admin" onclick="limpiarFormulario()" style="background: #444; width: auto; padding: 0 20px;">
+                        <i class="fas fa-broom"></i>
+                    </button>
+                </div>
+
+                <hr style="border:0; border-top:1px solid #333; margin:25px 0;">
+
+                <h3 style="color: #ffcc00; font-size: 0.9rem; margin-bottom: 15px;"><i class="fas fa-list"></i> EQUIPOS EN ESTA ÁREA</h3>
+                <p style="font-size: 0.7rem; color: #aaa; margin-bottom: 10px;">ESTE LISTADO SE ACTUALIZA SEGÚN EL ÁREA ELEGIDA ARRIBA.</p>
+                <div id="lista-edicion" class="sistemas-grid" style="grid-template-columns: 1fr; gap: 8px;">
+                    <!-- Cargado dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ACORDEÓN: GESTIÓN DE PLANOS (POR ÁREA) -->
+        <button class="accordion-admin" onclick="toggleAccordion(this)">
+            <span><i class="fas fa-map"></i> GESTIÓN DE PLANOS TÉCNICOS</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="panel-admin">
+            <div class="admin-form">
+                <label>SELECCIONAR ÁREA PARA EL PLANO:</label>
+                <select id="input-plano-area" onchange="cargarPlanosEdicionGeneral()">
+                    <option value="auxiliares">AUXILIARES</option>
+                    <option value="ciclo">CICLO</option>
+                    <option value="caldera">CALDERA</option>
+                    <option value="turbina">TURBINA</option>
+                    <option value="calderas_auxiliares">CALDERAS AUXILIARES</option>
+                    <option value="externas">PLANTAS EXTERNAS</option>
+                    <option value="instrumentacion">INSTRUMENTACIÓN</option>
+                    <option value="contra_incendio">SIST. CONTRA INCENDIO</option>
+                    <option value="operaciones">OPERACIONES (GENERAL)</option>
+                </select>
+
+                <label style="margin-top:15px;">NOMBRE DEL PLANO:</label>
+                <input type="text" id="input-plano-titulo-general" placeholder="Ej: Diagrama de Control de Nivel">
+
+                <label style="margin-top:15px;">FOTO DEL PLANO:</label>
+                <input type="file" id="input-plano-foto-general" accept="image/*" style="display:none;">
+                <div class="upload-area" onclick="document.getElementById('input-plano-foto-general').click()">
+                    <i class="fas fa-file-image"></i>
+                    <span id="txt-plano-archivo">CARGAR IMAGEN DEL PLANO</span>
+                </div>
+                <div id="preview-plano-general" style="display:none; margin-top:10px; text-align:center;">
+                    <img id="img-preview-plano-general" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; border:2px solid #00ccff;" alt="preview plano">
+                </div>
+
+                <button class="btn-guardar-admin" style="background:#27ae60; margin-top:20px;" onclick="guardarPlanoGeneral()">
+                    <i class="fas fa-upload"></i> SUBIR PLANO A LA NUBE
+                </button>
+
+                <hr style="border:0; border-top:1px solid #333; margin:30px 0;">
+                <h3 style="color: #00ccff; font-size: 0.9rem; margin-bottom: 15px;"><i class="fas fa-folder-open"></i> PLANOS CARGADOS EN ESTA ÁREA</h3>
+                <div id="lista-planos-edicion-general" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </div>
+
+        <!-- 3. ACORDEÓN: GESTIÓN DE MANUALES DE ÁREA -->
+        <button class="accordion-admin" onclick="toggleAccordion(this)">
+            <span><i class="fas fa-file-invoice"></i> MANUALES DE FUNCIONES POR ÁREA</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="panel-admin">
+            <div class="admin-form">
+                <label>SELECCIONAR ÁREA PARA EDITAR MANUAL:</label>
+                <select id="input-manual-area" onchange="cargarManualParaEditar()">
+                    <option value="auxiliares">AUXILIARES</option>
+                    <option value="ciclo">CICLO</option>
+                    <option value="caldera">CALDERA</option>
+                    <option value="turbina">TURBINA</option>
+                    <option value="calderas_auxiliares">CALDERAS AUXILIARES</option>
+                    <option value="externas">PLANTAS EXTERNAS</option>
+                    <option value="instrumentacion">INSTRUMENTACIÓN</option>
+                    <option value="contra_incendio">SIST. CONTRA INCENDIO</option>
+                </select>
+
+                <label style="margin-top:15px;">DESCRIPCIÓN DE FUNCIONES Y DEBERES:</label>
+                <textarea id="input-manual-texto" rows="10" placeholder="Escriba aquí los deberes del operador en esta área..."></textarea>
+
+                <button class="btn-guardar-admin" style="background:#00ccff; color:black; margin-top:20px;" onclick="guardarManualArea()">
+                    <i class="fas fa-save"></i> GUARDAR MANUAL DE ÁREA
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. ACORDEÓN: GESTIÓN DE DOCUMENTOS (EXCEL / WORD) -->
+        <button class="accordion-admin" onclick="toggleAccordion(this)">
+            <span><i class="fas fa-file-excel"></i> GESTIÓN DE DOCUMENTOS (XLSX / DOCX)</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="panel-admin">
+            <div class="admin-form">
+                <label>ÁREA PARA EL DOCUMENTO:</label>
+                <select id="input-doc-area" onchange="cargarDocsEdicion()">
+                    <option value="auxiliares">AUXILIARES</option>
+                    <option value="ciclo">CICLO</option>
+                    <option value="caldera">CALDERA</option>
+                    <option value="turbina">TURBINA</option>
+                    <option value="calderas_auxiliares">CALDERAS AUXILIARES</option>
+                    <option value="externas">PLANTAS EXTERNAS</option>
+                    <option value="instrumentacion">INSTRUMENTACIÓN</option>
+                    <option value="contra_incendio">SIST. CONTRA INCENDIO</option>
+                </select>
+
+                <label style="margin-top:15px;">NOMBRE DEL DOCUMENTO:</label>
+                <input type="text" id="input-doc-titulo" placeholder="Ej: Manual de Lubricación Turbina">
+
+                <label style="margin-top:15px;">SELECCIONAR ARCHIVO (MÁX 10MB):</label>
+                <input type="file" id="input-doc-archivo" accept=".xlsx, .xls, .doc, .docx, .pdf" style="display:none;">
+                <div class="upload-area" onclick="document.getElementById('input-doc-archivo').click()" style="border-color: #00ccff;">
+                    <i class="fas fa-file-upload" style="color: #00ccff;"></i>
+                    <span id="txt-doc-nombre">SELECCIONAR EXCEL, WORD O PDF</span>
+                </div>
+
+                <button class="btn-guardar-admin" style="background:#00ccff; color:black; margin-top:20px;" onclick="guardarDocumento()">
+                    <i class="fas fa-cloud-upload-alt"></i> SUBIR DOCUMENTO
+                </button>
+
+                <hr style="border:0; border-top:1px solid #333; margin:30px 0;">
+                <h3 style="color: #00ccff; font-size: 0.9rem; margin-bottom: 15px;"><i class="fas fa-folder-open"></i> ARCHIVOS EN ESTA ÁREA</h3>
+                <div id="lista-docs-edicion" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </div>
+
+        <!-- 5. SECCIÓN MAESTRO (SOLO LUIS) -->
+        <div id="seccion-usuarios" style="display:none; margin-top: 15px; border-top: 2px solid #27ae60; padding-top: 15px;">
+            <h2 style="color: #27ae60; font-size: 1rem; margin-bottom: 15px; text-align: center;">CONTROL MAESTRO (LUIS)</h2>
+
+            <!-- SOLICITUDES -->
+            <button class="accordion-admin" style="border-color:#27ae60; color:#2ecc71;" onclick="toggleAccordion(this)">
+                <span><i class="fas fa-user-clock"></i> SOLICITUDES DE ACCESO</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="panel-admin">
+                <div id="lista-solicitudes-acceso"></div>
+            </div>
+
+            <!-- GESTIÓN EDITORES -->
+            <button class="accordion-admin" style="border-color:#27ae60; color:#2ecc71;" onclick="toggleAccordion(this)">
+                <span><i class="fas fa-users-cog"></i> GESTIÓN DE EDITORES</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="panel-admin">
+                <div class="admin-form">
+                    <input type="hidden" id="edit-user-original-name">
+                    <label>NOMBRE DE USUARIO:</label>
+                    <input type="text" id="nuevo-usuario-nombre" placeholder="Ej: tecnico_juan" style="margin-bottom:15px;">
+
+                    <label>CLAVE TÉCNICA:</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="nuevo-usuario-clave" placeholder="Asignar clave">
+                        <i class="fas fa-eye toggle-password" id="toggle-editor-pass" onclick="togglePasswordVisibility('nuevo-usuario-clave', 'toggle-editor-pass')"></i>
+                    </div>
+
+                    <button id="btn-crear-user" class="btn-guardar-admin" style="background: #27ae60; margin-top:20px;" onclick="crearNuevoEditor()">GUARDAR EDITOR</button>
+                    <div id="lista-usuarios" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+
+            <!-- REGISTRO MANUAL -->
+            <button class="accordion-admin" style="border-color:#27ae60; color:#2ecc71;" onclick="toggleAccordion(this)">
+                <span><i class="fas fa-id-card"></i> REGISTRO MANUAL PERSONAL</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="panel-admin">
+                <div class="admin-form">
+                    <input type="hidden" id="edit-autorizado-original-id">
+                    <input type="number" id="nuevo-autorizado-id" placeholder="Cédula de Identidad" style="margin-bottom:10px;">
+                    <input type="text" id="nuevo-autorizado-nombre" placeholder="Nombre y Apellido">
+                    <button id="btn-crear-autorizado" class="btn-guardar-admin" style="background: #27ae60; margin-top:15px;" onclick="crearNuevoAutorizado()">GUARDAR PERSONAL</button>
+
+                    <div id="lista-personal-completa" style="margin-top: 20px; max-height: 400px; overflow-y: auto; padding-right: 5px;"></div>
+                </div>
+            </div>
+
+            <!-- CONFIGURACIÓN SISTEMA -->
+            <button class="accordion-admin" style="border-color:#ffcc00; color:#ffcc00;" onclick="toggleAccordion(this)">
+                <span><i class="fas fa-cog"></i> AJUSTES DEL SISTEMA</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="panel-admin">
+                <label>MI CLAVE DE MAESTRO:</label>
+                <div class="password-wrapper">
+                    <input type="password" id="nueva-clave-maestra" placeholder="Cambiar mi clave">
+                    <i class="fas fa-eye toggle-password" id="toggle-maestra-pass" onclick="togglePasswordVisibility('nueva-clave-maestra', 'toggle-maestra-pass')"></i>
+                </div>
+                <button class="btn-guardar-admin" style="background: #27ae60; margin-top:10px;" onclick="cambiarClaveMaestra()">ACTUALIZAR CLAVE</button>
+
+                <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+
+                <label>NOTIFICAR ACTUALIZACIÓN:</label>
+                <p style="font-size:0.65rem; color:#aaa; margin-bottom:10px;">Informa a todos que subiste una nueva versión a Drive.</p>
+                <button class="btn-guardar-admin" style="background: #ffcc00; color: black;" onclick="publicarNuevaVersion()">ENVIAR AVISO DE UPDATE</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL CONFIRMACIÓN -->
+    <div id="modal-confirm-delete-user" class="modal-hmi" style="display: none;">
+        <div class="modal-content admin-card-full" style="max-width: 300px; text-align: center; border-color: #ff4444;">
+            <h3 style="color: #ff4444;">¿ELIMINAR?</h3>
+            <p id="msg-confirm-delete-user" style="font-size: 0.8rem; margin-bottom: 20px;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-confirm-delete-user" class="btn-guardar-admin" style="background: #ff4444; padding: 10px;">SÍ</button>
+                <button onclick="cerrarConfirmDeleteUser()" class="btn-guardar-admin" style="background: #555; padding: 10px;">NO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFO (PARA PLANOS Y PREVIAS) -->
+    <div id="modal-info" class="modal-hmi">
+        <div class="modal-content">
+            <div id="info-tecnica"></div>
+            <button class="btn-cerrar" onclick="cerrarModal()">CERRAR</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function toggleAccordion(btn) {
+            btn.classList.toggle("active");
+            const panel = btn.nextElementSibling;
+            panel.classList.toggle("active");
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = localStorage.getItem('user_name') || 'Usuario';
+            document.getElementById('txt-saludo-admin').innerText = "HOLA, " + user.toUpperCase();
+        });
+    </script>
+</body>
+</html>
