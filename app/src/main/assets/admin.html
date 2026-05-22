@@ -44,7 +44,7 @@
         <div class="panel-admin">
             <div class="admin-form">
                 <h3 style="color: #ffcc00; font-size: 0.9rem; margin-bottom: 15px;"><i class="fas fa-plus-circle"></i> NUEVO REGISTRO / ACTUALIZAR</h3>
-                <label>SISTEMA / ÁREA:</label>
+                <label for="input-area">SISTEMA / ÁREA:</label>
                 <select id="input-area" onchange="cargarEquiposEdicion()">
                     <option value="auxiliares">AUXILIARES</option>
                     <option value="ciclo">CICLO</option>
@@ -58,16 +58,16 @@
 
                 <div class="input-row">
                     <div class="input-group">
-                        <label>ALFANUMÉRICO (TAG):</label>
+                        <label for="input-tag">ALFANUMÉRICO (TAG):</label>
                         <input type="text" id="input-tag" placeholder="Ej: 06PAB01">
                     </div>
                     <div class="input-group">
-                        <label>NOMBRE EQUIPO:</label>
+                        <label for="input-nombre">NOMBRE EQUIPO:</label>
                         <input type="text" id="input-nombre" placeholder="Ej: Bomba de Agua">
                     </div>
                 </div>
 
-                <label>FOTOS TÉCNICAS (MÁX 2):</label>
+                <label for="input-archivo-foto">FOTOS TÉCNICAS (MÁX 2):</label>
                 <input type="file" id="input-archivo-foto" accept="image/*" multiple style="display: none;">
                 <div class="upload-area" onclick="document.getElementById('input-archivo-foto').click()">
                     <i class="fas fa-camera"></i>
@@ -77,13 +77,13 @@
                     <!-- Se llena dinámicamente desde app.js -->
                 </div>
 
-                <label style="margin-top:15px;">ESPECIFICACIONES TÉCNICAS:</label>
+                <label for="input-info" style="margin-top:15px;">ESPECIFICACIONES TÉCNICAS:</label>
                 <textarea id="input-info" rows="4" placeholder="Indique presiones, temperaturas, potencias..."></textarea>
 
-                <label>PROTOCOLO DE OPERACIÓN:</label>
+                <label for="input-operacion">PROTOCOLO DE OPERACIÓN:</label>
                 <textarea id="input-operacion" rows="4" placeholder="Pasos para arranque o maniobra segura..."></textarea>
 
-                <label>UBICACIÓN FÍSICA:</label>
+                <label for="input-ubicacion">UBICACIÓN FÍSICA:</label>
                 <input type="text" id="input-ubicacion" placeholder="Ej: Planta 0.00 / Sala de Bombas">
 
                 <div style="display: flex; gap: 10px; margin-top: 20px; margin-bottom: 30px;">
@@ -112,7 +112,7 @@
         </button>
         <div class="panel-admin">
             <div class="admin-form">
-                <label>SELECCIONAR ÁREA PARA EL PLANO:</label>
+                <label for="input-plano-area">SELECCIONAR ÁREA PARA EL PLANO:</label>
                 <select id="input-plano-area" onchange="cargarPlanosEdicionGeneral()">
                     <option value="auxiliares">AUXILIARES</option>
                     <option value="ciclo">CICLO</option>
@@ -125,10 +125,10 @@
                     <option value="operaciones">OPERACIONES (GENERAL)</option>
                 </select>
 
-                <label style="margin-top:15px;">NOMBRE DEL PLANO:</label>
+                <label for="input-plano-titulo-general" style="margin-top:15px;">NOMBRE DEL PLANO:</label>
                 <input type="text" id="input-plano-titulo-general" placeholder="Ej: Diagrama de Control de Nivel">
 
-                <label style="margin-top:15px;">FOTO DEL PLANO:</label>
+                <label for="input-plano-foto-general" style="margin-top:15px;">FOTO DEL PLANO:</label>
                 <input type="file" id="input-plano-foto-general" accept="image/*" style="display:none;">
                 <div class="upload-area" onclick="document.getElementById('input-plano-foto-general').click()">
                     <i class="fas fa-file-image"></i>
@@ -155,7 +155,7 @@
         </button>
         <div class="panel-admin">
             <div class="admin-form">
-                <label>SELECCIONAR ÁREA PARA EDITAR MANUAL:</label>
+                <label for="input-manual-area">SELECCIONAR ÁREA PARA EDITAR MANUAL:</label>
                 <select id="input-manual-area" onchange="cargarManualParaEditar()">
                     <option value="auxiliares">AUXILIARES</option>
                     <option value="ciclo">CICLO</option>
@@ -167,7 +167,7 @@
                     <option value="contra_incendio">SIST. CONTRA INCENDIO</option>
                 </select>
 
-                <label style="margin-top:15px;">DESCRIPCIÓN DE FUNCIONES Y DEBERES:</label>
+                <label for="input-manual-texto" style="margin-top:15px;">DESCRIPCIÓN DE FUNCIONES Y DEBERES:</label>
                 <textarea id="input-manual-texto" rows="10" placeholder="Escriba aquí los deberes del operador en esta área..."></textarea>
 
                 <button class="btn-guardar-admin" style="background:#00ccff; color:black; margin-top:20px;" onclick="guardarManualArea()">
@@ -183,7 +183,7 @@
         </button>
         <div class="panel-admin">
             <div class="admin-form">
-                <label>ÁREA PARA EL DOCUMENTO:</label>
+                <label for="input-doc-area">ÁREA PARA EL DOCUMENTO:</label>
                 <select id="input-doc-area" onchange="cargarDocsEdicion()">
                     <option value="auxiliares">AUXILIARES</option>
                     <option value="ciclo">CICLO</option>
@@ -195,10 +195,10 @@
                     <option value="contra_incendio">SIST. CONTRA INCENDIO</option>
                 </select>
 
-                <label style="margin-top:15px;">NOMBRE DEL DOCUMENTO:</label>
+                <label for="input-doc-titulo" style="margin-top:15px;">NOMBRE DEL DOCUMENTO:</label>
                 <input type="text" id="input-doc-titulo" placeholder="Ej: Manual de Lubricación Turbina">
 
-                <label style="margin-top:15px;">SELECCIONAR ARCHIVO (MÁX 10MB):</label>
+                <label for="input-doc-archivo" style="margin-top:15px;">SELECCIONAR ARCHIVO (MÁX 10MB):</label>
                 <input type="file" id="input-doc-archivo" accept=".xlsx, .xls, .doc, .docx, .pdf" style="display:none;">
                 <div class="upload-area" onclick="document.getElementById('input-doc-archivo').click()" style="border-color: #00ccff;">
                     <i class="fas fa-file-upload" style="color: #00ccff;"></i>
@@ -237,16 +237,16 @@
                 <div class="admin-form">
                     <input type="hidden" id="edit-user-original-name">
 
-                    <label>NOMBRE DE USUARIO:</label>
+                    <label for="nuevo-usuario-nombre">NOMBRE DE USUARIO:</label>
                     <input type="text" id="nuevo-usuario-nombre" placeholder="Ej: tecnico_juan" style="margin-bottom:15px;">
 
-                    <label>NIVEL DE ACCESO:</label>
+                    <label for="nuevo-usuario-rol">NIVEL DE ACCESO:</label>
                     <select id="nuevo-usuario-rol" style="margin-bottom:15px; background: #1a1a1a; color: white; border: 1px solid #333; padding: 10px; border-radius: 8px;">
                         <option value="editor">EDITOR TÉCNICO (Solo Equipos)</option>
                         <option value="super">MAESTRO (Acceso Total Admin)</option>
                     </select>
 
-                    <label>CLAVE TÉCNICA:</label>
+                    <label for="nuevo-usuario-clave">CLAVE TÉCNICA:</label>
                     <div class="password-wrapper">
                         <input type="password" id="nuevo-usuario-clave" placeholder="Asignar clave">
                         <i class="fas fa-eye toggle-password" id="toggle-editor-pass" onclick="togglePasswordVisibility('nuevo-usuario-clave', 'toggle-editor-pass')"></i>
@@ -265,7 +265,9 @@
             <div class="panel-admin">
                 <div class="admin-form">
                     <input type="hidden" id="edit-autorizado-original-id">
+                    <label for="nuevo-autorizado-id" style="display: none;">CÉDULA</label>
                     <input type="number" id="nuevo-autorizado-id" placeholder="Cédula de Identidad" style="margin-bottom:10px;">
+                    <label for="nuevo-autorizado-nombre" style="display: none;">NOMBRE</label>
                     <input type="text" id="nuevo-autorizado-nombre" placeholder="Nombre y Apellido">
                     <button id="btn-crear-autorizado" class="btn-guardar-admin" style="background: #27ae60; margin-top:15px;" onclick="crearNuevoAutorizado()">GUARDAR PERSONAL</button>
 
@@ -279,7 +281,7 @@
                 <i class="fas fa-chevron-down"></i>
             </button>
             <div class="panel-admin">
-                <label>MI CLAVE DE MAESTRO:</label>
+                <label for="nueva-clave-maestra">MI CLAVE DE MAESTRO:</label>
                 <div class="password-wrapper">
                     <input type="password" id="nueva-clave-maestra" placeholder="Cambiar mi clave">
                     <i class="fas fa-eye toggle-password" id="toggle-maestra-pass" onclick="togglePasswordVisibility('nueva-clave-maestra', 'toggle-maestra-pass')"></i>
