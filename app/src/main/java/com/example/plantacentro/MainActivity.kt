@@ -1,7 +1,6 @@
 package com.example.plantacentro
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,8 +27,17 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.view.WindowManager
 import android.widget.Toast
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
@@ -38,7 +46,7 @@ class MainActivity : AppCompatActivity() {
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     private val fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
+        if (result.resultCode == RESULT_OK) {
             val data: Intent? = result.data
             val results = if (data?.clipData != null) {
                 val count = data.clipData!!.itemCount
@@ -57,6 +65,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        createNotificationChannel()
+        requestNotificationPermission()
+
         // Bloquear capturas de pantalla y grabación por seguridad industrial
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
@@ -70,7 +81,6 @@ class MainActivity : AppCompatActivity() {
         webSettings.allowContentAccess = true
         webSettings.useWideViewPort = true
         webSettings.loadWithOverviewMode = true
-        webSettings.databaseEnabled = true
         webSettings.domStorageEnabled = true
         
         // Optimización de Cache
@@ -123,6 +133,23 @@ class MainActivity : AppCompatActivity() {
         webView.addJavascriptInterface(WebAppInterface(this), "Android")
         webView.loadUrl("file:///android_asset/bienvenida.html")
 
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(enabled = true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastBackPressTime < 2000) {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                    } else {
+                        lastBackPressTime = currentTime
+                        Toast.makeText(this@MainActivity, "Presiona atrás de nuevo para salir", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+
         // Registrar receptor para cuando termine la descarga (Compatibilidad con Android 13+)
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -165,21 +192,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private var lastBackPressTime: Long = 0
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Notificaciones Planta Centro"
+            val descriptionText = "Alertas de personal y avisos de la Unidad 6"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel("CHANNEL_U6_ALERTS", name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
 
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastBackPressTime < 2000) {
-                super.onBackPressed()
-            } else {
-                lastBackPressTime = currentTime
-                Toast.makeText(this, "Presiona atrás de nuevo para salir", Toast.LENGTH_SHORT).show()
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
             }
         }
     }
+
+    private var lastBackPressTime: Long = 0
 
     override fun onDestroy() {
         super.onDestroy()
@@ -270,6 +305,29 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 mContext.startActivity(intent)
+            }
+        }
+
+        @JavascriptInterface
+        fun showNativeNotification(title: String, message: String) {
+            val intent = Intent(mContext, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            val pendingIntent: PendingIntent = PendingIntent.getActivity(mContext, 0, intent,
+                PendingIntent.FLAG_IMMUTABLE)
+
+            val builder = NotificationCompat.Builder(mContext, "CHANNEL_U6_ALERTS")
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+
+            with(NotificationManagerCompat.from(mContext)) {
+                if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    notify(System.currentTimeMillis().toInt(), builder.build())
+                }
             }
         }
 

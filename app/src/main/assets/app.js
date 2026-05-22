@@ -61,8 +61,6 @@ function conectarFirebase() {
                     const user = sessionStorage.getItem('user_name') || 'Invitado';
 
                     if ((sessionStorage.getItem('user_role') || sessionStorage.getItem('user_name')) && !notificacionConexionMostrada) {
-                        const roleName = (sessionStorage.getItem('user_role') || 'LECTURA').toUpperCase();
-                        notificar(`CONECTADO [MODO: ${roleName}]`, "exito");
                         notificacionConexionMostrada = true;
                         notificacionOfflineMostrada = false;
                     }
@@ -124,7 +122,6 @@ function conectarFirebase() {
                     });
 
                     if (!navigator.onLine && !notificacionOfflineMostrada) {
-                        notificar("MODO OFFLINE: SIN CONEXIÓN A INTERNET", "info");
                         notificacionOfflineMostrada = true;
                         notificacionConexionMostrada = false; // Resetear para que avise al volver
                     }
@@ -287,7 +284,6 @@ function confirmarAcceso() {
             localStorage.removeItem('user_id_std'); // LIMPIAR ID DE LECTOR PARA EVITAR CONFLICTOS DE PRESENCIA
             sessionStorage.setItem('user_role', 'super');
             sessionStorage.setItem('user_name', 'Luis');
-            notificar("ACCESO MAESTRO CONCEDIDO", "exito");
             setTimeout(() => { window.location.replace("admin.html"); }, 600);
             return;
         } else {
@@ -979,13 +975,22 @@ function prepararEdicionEditor(u, clave, rol = 'editor') {
     window.scrollTo({top: document.getElementById('nuevo-usuario-nombre').offsetTop - 100, behavior:'smooth'});
 }
 
+let totalPendientesGlobal = 0;
+let solicitudesVigilanteActivo = false;
+
 function cargarSolicitudesAcceso() {
-    const c = document.getElementById('lista-solicitudes-acceso'); if(!c) return;
+    const c = document.getElementById('lista-solicitudes-acceso');
+    if (!database) return;
+
     database.ref('personal_autorizado').on('value', s => {
-        c.innerHTML = ""; const data = s.val() || {};
+        const data = s.val() || {};
+        let count = 0;
+        let html = "";
+
         Object.keys(data).forEach(id => {
             if(data[id].estado === 'pendiente') {
-                c.innerHTML += `
+                count++;
+                html += `
                 <div class="user-item-modern" style="border-left-color:#f1c40f; display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px;">
                     <span><b>${data[id].nombre}</b> (${id})</span>
                     <div style="display: flex; gap: 8px;">
@@ -999,11 +1004,22 @@ function cargarSolicitudesAcceso() {
                 </div>`;
             }
         });
+
+        if(c) c.innerHTML = html || "<p style='color:#666; font-size:0.75rem; text-align:center;'>No hay solicitudes pendientes.</p>";
+
+        // NOTIFICACIÓN ACTIVA PARA EL MAESTRO
+        if (solicitudesVigilanteActivo && count > totalPendientesGlobal) {
+            notificar(`NUEVA SOLICITUD: ${count} PENDIENTE(S)`, "warning");
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración doble
+        }
+
+        totalPendientesGlobal = count;
+        solicitudesVigilanteActivo = true;
     });
 }
 
 function procesarSolicitud(id, estado) {
-    database.ref('personal_autorizado/'+id+'/estado').set(estado).then(() => notificar("ACCESO CONCEDIDO A " + id));
+    database.ref('personal_autorizado/'+id+'/estado').set(estado);
 }
 
 function denegarSolicitud(id) {
@@ -1140,6 +1156,12 @@ function publicarNuevaVersion() {
 // ================= UTILIDADES ==================
 function notificar(msj, tipo = 'exito') {
     const msjUpper = msj.toUpperCase();
+
+    // Lanzar notificación nativa de Android si está disponible
+    if (typeof Android !== "undefined" && Android.showNativeNotification) {
+        Android.showNativeNotification("PLANTA CENTRO U6", msjUpper);
+    }
+
     const existentes = document.querySelectorAll('.toast-modern span');
     for (let a of existentes) { if (a.innerText === msjUpper) return; }
     let container = document.querySelector('.toast-container');
@@ -1443,9 +1465,14 @@ document.addEventListener('DOMContentLoaded', () => {
     conectarFirebase(); const area = sessionStorage.getItem('area_actual'); const role = sessionStorage.getItem('user_role');
     const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = (area === 'Operaciones') ? 'flex' : 'none';
 
+    // Monitoreo global para el Maestro
+    if(role === 'super') {
+        cargarSolicitudesAcceso();
+    }
+
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
-        cargarListaUsuarios(); cargarSolicitudesAcceso(); cargarListaPersonalAutorizado();
+        cargarListaUsuarios(); cargarListaPersonalAutorizado();
     }
 
     // Mostrar botón de logout si hay sesión activa
