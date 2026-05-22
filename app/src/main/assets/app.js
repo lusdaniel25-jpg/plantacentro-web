@@ -262,9 +262,16 @@ function verificarIdentidad() {
                 } else {
                     const msg = document.getElementById('msg-error-id');
                     if(msg) {
-                        msg.innerText = (u && u.estado === 'pendiente') ? "ESPERA APROBACIÓN" : "ID NO REGISTRADO";
+                        msg.innerText = (u && u.estado === 'pendiente') ? "ESPERA APROBACIÓN DEL ADMINISTRADOR" : "ID NO REGISTRADO EN EL SISTEMA";
                         msg.style.display = 'block';
+                        msg.style.background = "rgba(255, 68, 68, 0.15)";
+                        msg.style.borderColor = "#ff4444";
+                        msg.style.color = "#ff4444";
+
                         if (u && u.estado === 'pendiente') {
+                            msg.style.background = "rgba(255, 204, 0, 0.15)";
+                            msg.style.borderColor = "#ffcc00";
+                            msg.style.color = "#ffcc00";
                             localStorage.setItem('esperando_aprobacion', id);
                             escucharEstadoSolicitud(id);
                         }
@@ -1633,6 +1640,8 @@ function mostrarFormSolicitud() {
 function enviarSolicitudAcceso() {
     const nom = document.getElementById('input-nombre-solicitud').value.trim();
     const id = document.getElementById('input-id-solicitud').value.trim();
+    const msg = document.getElementById('msg-error-id');
+
     if (!nom || !id) { notificar("COMPLETE LOS CAMPOS", "error"); return; }
 
     if (database) {
@@ -1640,12 +1649,24 @@ function enviarSolicitudAcceso() {
             const u = s.val();
             if (u) {
                 if (u.estado === 'activo') {
-                    notificar("USTED YA TIENE ACCESO AUTORIZADO", "info");
+                    if(msg) {
+                        msg.innerText = "ACCESO CONCEDIDO: YA ESTÁS AUTORIZADO";
+                        msg.style.color = "#2ecc71";
+                        msg.style.background = "rgba(46, 204, 113, 0.15)";
+                        msg.style.borderColor = "#2ecc71";
+                        msg.style.display = 'block';
+                    }
                     volverAVerificar();
                     return;
                 }
                 if (u.estado === 'pendiente') {
-                    notificar("SU SOLICITUD YA ESTÁ PENDIENTE", "info");
+                    if(msg) {
+                        msg.innerText = "SISTEMA: TU SOLICITUD YA ESTÁ PENDIENTE DE APROBACIÓN";
+                        msg.style.color = "#ffcc00";
+                        msg.style.background = "rgba(255, 204, 0, 0.15)";
+                        msg.style.borderColor = "#ffcc00";
+                        msg.style.display = 'block';
+                    }
                     localStorage.setItem('esperando_aprobacion', id);
                     escucharEstadoSolicitud(id);
                     volverAVerificar();
@@ -1658,10 +1679,20 @@ function enviarSolicitudAcceso() {
                 estado: 'pendiente',
                 fecha: new Date().toLocaleString()
             }).then(() => {
-                notificar("SOLICITUD ENVIADA A LUIS", "exito");
+                if(msg) {
+                    msg.innerText = "¡EXITO! SOLICITUD ENVIADA. ESPERE APROBACIÓN DEL ADMINISTRADOR.";
+                    msg.style.color = "#ffcc00";
+                    msg.style.background = "rgba(255, 204, 0, 0.2)";
+                    msg.style.borderColor = "#ffcc00";
+                    msg.style.display = 'block';
+                }
                 localStorage.setItem('esperando_aprobacion', id);
                 escucharEstadoSolicitud(id);
                 volverAVerificar();
+
+                // Limpiar campos de solicitud
+                document.getElementById('input-nombre-solicitud').value = "";
+                document.getElementById('input-id-solicitud').value = "";
             });
         });
     } else {
