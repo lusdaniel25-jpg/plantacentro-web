@@ -1636,15 +1636,33 @@ function enviarSolicitudAcceso() {
     if (!nom || !id) { notificar("COMPLETE LOS CAMPOS", "error"); return; }
 
     if (database) {
-        database.ref('personal_autorizado/' + id).set({
-            nombre: nom,
-            estado: 'pendiente',
-            fecha: new Date().toLocaleString()
-        }).then(() => {
-            notificar("SOLICITUD ENVIADA A LUIS", "exito");
-            localStorage.setItem('esperando_aprobacion', id);
-            escucharEstadoSolicitud(id);
-            volverAVerificar();
+        database.ref('personal_autorizado/' + id).once('value').then(s => {
+            const u = s.val();
+            if (u) {
+                if (u.estado === 'activo') {
+                    notificar("USTED YA TIENE ACCESO AUTORIZADO", "info");
+                    volverAVerificar();
+                    return;
+                }
+                if (u.estado === 'pendiente') {
+                    notificar("SU SOLICITUD YA ESTÁ PENDIENTE", "info");
+                    localStorage.setItem('esperando_aprobacion', id);
+                    escucharEstadoSolicitud(id);
+                    volverAVerificar();
+                    return;
+                }
+            }
+
+            database.ref('personal_autorizado/' + id).set({
+                nombre: nom,
+                estado: 'pendiente',
+                fecha: new Date().toLocaleString()
+            }).then(() => {
+                notificar("SOLICITUD ENVIADA A LUIS", "exito");
+                localStorage.setItem('esperando_aprobacion', id);
+                escucharEstadoSolicitud(id);
+                volverAVerificar();
+            });
         });
     } else {
         notificar("ERROR: SIN CONEXIÓN", "error");
