@@ -61,24 +61,19 @@ function conectarFirebase() {
 }
 
 function sincronizarColas() {
-    if (!database || !navigator.onLine) return;
+    if (!database) return;
+
+    // Si no hay internet, Firebase guardará los cambios internamente (Persistencia Offline)
+    // Pero forzamos la sincronización manual de nuestras colas de localStorage
+    if (!navigator.onLine) {
+        console.log("Sincronización en espera: Sin internet");
+        return;
+    }
+
     let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
-    let colaPlEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
-    let colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
-    let colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
-    let colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
 
-    // Sincronizar Equipos
-    colaEnv.forEach(q => {
-        database.ref('equipos/' + q.area + '/' + q.tag).set(q).then(() => {
-            let actual = JSON.parse(localStorage.getItem('cola_envios') || "[]");
-            actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
-            localStorage.setItem('cola_envios', JSON.stringify(actual));
-            notificar("SINCRONIZADO: " + q.tag);
-            if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
-        });
-    });
+    // 1. PRIMERO PROCESAR ELIMINACIONES para evitar borrar lo que acabamos de agregar
     colaDel.forEach(q => {
         database.ref('equipos/' + q.area + '/' + q.tag).remove().then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
@@ -88,7 +83,18 @@ function sincronizarColas() {
         });
     });
 
-    // Sincronizar Planos
+    // 2. LUEGO PROCESAR ENVÍOS
+    colaEnv.forEach(q => {
+        database.ref('equipos/' + q.area + '/' + q.tag).set(q).then(() => {
+            let actual = JSON.parse(localStorage.getItem('cola_envios') || "[]");
+            actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
+            localStorage.setItem('cola_envios', JSON.stringify(actual));
+            notificar("REGISTRO EXITOSO: " + q.tag);
+            if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
+        });
+    });
+
+    // Sincronizar Planos y Documentos (Mantenemos el orden estándar)
     colaPlEnv.forEach(q => {
         database.ref('planos/' + q.area + '/' + q.id).set(q.data).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
@@ -480,6 +486,7 @@ function procesarCarga() {
     // VALIDACIÓN DE DUPLICADOS GLOBAL (En todas las áreas)
     const areas = ["auxiliares", "turbina", "ciclo", "caldera", "calderas_auxiliares", "externas", "instrumentacion", "contra_incendio"];
     const colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
+    const colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
 
     let duplicadoEnArea = null;
 
@@ -489,9 +496,11 @@ function procesarCarga() {
             const cacheRaw = localStorage.getItem('cache_' + a);
             const cacheArea = (cacheRaw && cacheRaw !== "undefined") ? JSON.parse(cacheRaw) : {};
 
-            // Verificar TAG
+            // Verificar TAG (Ignorar si está en cola de eliminación)
+            const estaEnColaDel = colaDel.some(d => d.tag === tag && d.area === a);
             const existeTag = (cacheArea && cacheArea[tag]) || colaEnv.find(e => e.tag === tag && e.area === a);
-            if (existeTag && (!tagOriginalEdicion || tag !== tagOriginalEdicion || a !== areaOriginalEdicion)) {
+
+            if (existeTag && !estaEnColaDel && (!tagOriginalEdicion || tag !== tagOriginalEdicion || a !== areaOriginalEdicion)) {
                 duplicadoEnArea = a;
                 break;
             }
@@ -501,7 +510,7 @@ function procesarCarga() {
             const existeNom = equiposArea.find(e => e.nombre && e.nombre.toLowerCase() === nombre.toLowerCase()) ||
                               colaEnv.find(e => e.nombre && e.nombre.toLowerCase() === nombre.toLowerCase() && e.area === a);
 
-            if (existeNom && (!tagOriginalEdicion || tagOriginalEdicion !== (existeNom.tag || tag) || a !== areaOriginalEdicion)) {
+            if (existeNom && !estaEnColaDel && (!tagOriginalEdicion || tagOriginalEdicion !== (existeNom.tag || tag) || a !== areaOriginalEdicion)) {
                 duplicadoEnArea = a;
                 break;
             }
@@ -527,6 +536,11 @@ function procesarCarga() {
     colaActualizada = colaActualizada.filter(i => !(i.tag === tag && i.area === area));
     colaActualizada.push(equipo);
     localStorage.setItem('cola_envios', JSON.stringify(colaActualizada));
+
+    // LIMPIAR DE LA COLA DE ELIMINACIÓN SI SE ESTÁ RE-AGREGANDO
+    let colaDelActualizada = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+    colaDelActualizada = colaDelActualizada.filter(i => !(i.tag === tag && i.area === area));
+    localStorage.setItem('cola_eliminaciones', JSON.stringify(colaDelActualizada));
 
     if (tagOriginalEdicion && (areaOriginalEdicion !== area || tagOriginalEdicion !== tag)) {
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
