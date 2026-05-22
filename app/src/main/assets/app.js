@@ -457,30 +457,55 @@ function guardarDocumento() {
 function cargarListaUsuarios() {
     const l = document.getElementById('lista-usuarios'); if(!l) return;
     database.ref('usuarios').on('value', s => {
-        const us = s.val() || {}; l.innerHTML = "<h4 style='color:#ffcc00; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'>EDITORES REGISTRADOS:</h4>";
-        Object.keys(us).forEach(u => {
-            if(u !== 'luis') {
-                l.innerHTML += `
-                <div class="user-item-modern" style="border-left:4px solid #2ecc71; background:rgba(46,204,113,0.05); display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
-                    <div style="text-align:left;">
-                        <b style="color:#fff; font-size:0.85rem;">${u.toUpperCase()}</b><br>
-                        <small style="color:#2ecc71; font-size:0.65rem;">NIVEL: EDITOR TÉCNICO</small>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <button onclick="prepararEdicionEditor('${u}', '${us[u].clave}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
-                        <button onclick="solicitarEliminarU('${u}')" style="background:rgba(255,68,68,0.1); border:1px solid #ff4444; color:#ff4444; padding:5px 8px; border-radius:6px;"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                </div>`;
-            }
-        });
+        const us = s.val() || {};
+        l.innerHTML = "";
+
+        // Asegurar que el Root (Luis) aparezca siempre para ser gestionado
+        if(!us['luis']) {
+            us['luis'] = { nombre: 'luis', clave: localStorage.getItem('master_pass') || 'luis2026', rol: 'super' };
+        }
+
+        const maestros = Object.keys(us).filter(u => us[u].rol === 'super');
+        const editores = Object.keys(us).filter(u => us[u].rol !== 'super');
+
+        if(maestros.length > 0) {
+            l.innerHTML += "<h4 style='color:#ff4444; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-crown'></i> MAESTROS (ACCESO TOTAL):</h4>";
+            maestros.forEach(u => l.innerHTML += generarItemUsuario(u, us[u]));
+        }
+
+        if(editores.length > 0) {
+            l.innerHTML += "<h4 style='color:#2ecc71; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-user-edit'></i> EDITORES TÉCNICOS:</h4>";
+            editores.forEach(u => l.innerHTML += generarItemUsuario(u, us[u]));
+        }
     });
 }
 
-function prepararEdicionEditor(u, clave) {
+function generarItemUsuario(u, data) {
+    const esMaestro = data.rol === 'super';
+    const colorBorde = esMaestro ? '#ff4444' : '#2ecc71';
+    const colorFondo = esMaestro ? 'rgba(255,68,68,0.05)' : 'rgba(46,204,113,0.05)';
+    const etiqueta = esMaestro ? 'MAESTRO / ADMINISTRADOR' : 'EDITOR TÉCNICO';
+    const esRoot = u === 'luis';
+
+    return `
+    <div class="user-item-modern" style="border-left:4px solid ${colorBorde}; background:${colorFondo}; display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
+        <div style="text-align:left;">
+            <b style="color:#fff; font-size:0.85rem;">${u.toUpperCase()} ${esRoot ? '<small style="color:#ffcc00">(ROOT)</small>' : ''}</b><br>
+            <small style="color:${colorBorde}; font-size:0.65rem;">${etiqueta}</small>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="prepararEdicionEditor('${u}', '${data.clave}', '${data.rol}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
+            ${!esRoot ? `<button onclick="solicitarEliminarU('${u}')" style="background:rgba(255,68,68,0.1); border:1px solid #ff4444; color:#ff4444; padding:5px 8px; border-radius:6px;"><i class="fas fa-trash-alt"></i></button>` : ''}
+        </div>
+    </div>`;
+}
+
+function prepararEdicionEditor(u, clave, rol = 'editor') {
     document.getElementById('nuevo-usuario-nombre').value = u;
     document.getElementById('nuevo-usuario-clave').value = clave;
+    if(document.getElementById('nuevo-usuario-rol')) document.getElementById('nuevo-usuario-rol').value = rol;
     document.getElementById('edit-user-original-name').value = u;
-    document.getElementById('btn-crear-user').innerHTML = '<i class="fas fa-save"></i> ACTUALIZAR EDITOR';
+    document.getElementById('btn-crear-user').innerHTML = '<i class="fas fa-save"></i> ACTUALIZAR USUARIO';
 
     // Forzar que la clave sea visible al editar para que el Maestro la vea
     const passInput = document.getElementById('nuevo-usuario-clave');
@@ -488,7 +513,7 @@ function prepararEdicionEditor(u, clave) {
     passInput.type = "text";
     if(eyeIcon) eyeIcon.className = "fas fa-eye-slash";
 
-    notificar("EDITANDO EDITOR: " + u.toUpperCase(), "info");
+    notificar("EDITANDO USUARIO: " + u.toUpperCase(), "info");
     window.scrollTo({top: document.getElementById('nuevo-usuario-nombre').offsetTop - 100, behavior:'smooth'});
 }
 
@@ -507,17 +532,19 @@ function procesarSolicitud(id, estado) { database.ref('personal_autorizado/'+id+
 function crearNuevoEditor() {
     const nom = document.getElementById('nuevo-usuario-nombre').value.toLowerCase().trim();
     const cla = document.getElementById('nuevo-usuario-clave').value.trim();
+    const rol = document.getElementById('nuevo-usuario-rol') ? document.getElementById('nuevo-usuario-rol').value : 'editor';
     const original = document.getElementById('edit-user-original-name').value;
     if(!nom || !cla) return;
 
     if(original && original !== nom) { database.ref('usuarios/'+original).remove(); }
 
-    database.ref('usuarios/'+nom).set({ nombre: nom, clave: cla, rol: 'editor' }).then(() => {
-        notificar(original ? "EDITOR ACTUALIZADO" : "EDITOR CREADO");
+    database.ref('usuarios/'+nom).set({ nombre: nom, clave: cla, rol: rol }).then(() => {
+        notificar(original ? "USUARIO ACTUALIZADO" : "USUARIO CREADO");
         document.getElementById('nuevo-usuario-nombre').value="";
         document.getElementById('nuevo-usuario-clave').value="";
         document.getElementById('edit-user-original-name').value="";
-        document.getElementById('btn-crear-user').innerHTML = '<i class="fas fa-user-plus"></i> GUARDAR EDITOR';
+        if(document.getElementById('nuevo-usuario-rol')) document.getElementById('nuevo-usuario-rol').value = 'editor';
+        document.getElementById('btn-crear-user').innerHTML = '<i class="fas fa-user-plus"></i> GUARDAR USUARIO';
     });
 }
 
