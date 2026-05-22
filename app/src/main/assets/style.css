@@ -6,7 +6,8 @@
 
 body {
     margin: 0; padding: 0;
-    background: url('IMG_20260425_100818.jpg') no-repeat center center;
+    /* Optimización: Se recomienda usar .webp para reducir peso hasta un 80% */
+    background: url('IMG_20260425_100818.webp') no-repeat center center;
     background-size: cover; font-family: 'Segoe UI', sans-serif; color: white;
     background-attachment: scroll; /* Cambiado de fixed para mejor compatibilidad móvil */
 }
@@ -71,7 +72,7 @@ body::before {
 
 /* ESTILOS PÁGINA BIENVENIDA */
 .body-presentacion { margin: 0; height: 100%; min-height: 100vh; overflow-x: hidden; background: #000; }
-.background-planta { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('IMG_20250728_173642.jpg') center/cover; z-index: -1; }
+.background-planta { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('IMG_20250728_173642.webp') center/cover; z-index: -1; }
 .capa-oscura { width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
 
 .header-top { position: absolute; top: 50px; width: 100%; display: flex; justify-content: space-between; padding: 0 15px; box-sizing: border-box; align-items: center; }

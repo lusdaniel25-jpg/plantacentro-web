@@ -9,8 +9,8 @@
     <script>
         // Bloqueo de acceso no autorizado inmediato
         (function() {
-            const role = localStorage.getItem('user_role');
-            const user = localStorage.getItem('user_name');
+            const role = sessionStorage.getItem('user_role');
+            const user = sessionStorage.getItem('user_name');
             if (!role || (role !== 'super' && role !== 'editor')) {
                 // Si no hay rol válido, fuera.
                 window.location.replace('index.html');
@@ -25,7 +25,7 @@
     </div>
 
     <header class="hmi-header">
-        <button onclick="localStorage.removeItem('user_role'); window.location.replace('index.html')" class="btn-home" style="padding: 8px;">
+        <button onclick="sessionStorage.removeItem('user_role'); window.location.replace('index.html')" class="btn-home" style="padding: 8px;">
             <i class="fas fa-chevron-left"></i> VOLVER
         </button>
         <h1 id="txt-saludo-admin">PANEL ADMINISTRATIVO</h1>
@@ -326,7 +326,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const user = localStorage.getItem('user_name') || 'Usuario';
+            const user = sessionStorage.getItem('user_name') || 'Usuario';
             document.getElementById('txt-saludo-admin').innerText = "HOLA, " + user.toUpperCase();
         });
     </script>

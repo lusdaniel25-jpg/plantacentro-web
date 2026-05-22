@@ -14,9 +14,14 @@
             <i class="fas fa-chevron-left"></i> ATRÁS
         </button>
         <h1><i class="fas fa-bolt"></i> UNIDAD 6 <i class="fas fa-bolt"></i></h1>
-        <button class="btn-admin-config" onclick="validarAcceso()">
-             <i class="fas fa-user-cog"></i> ADMIN
-        </button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="btn-logout" class="btn-admin-config" onclick="cerrarSesion()" style="display: none; background: rgba(255, 68, 68, 0.2); border-color: #ff4444; color: #ff4444; padding: 8px 12px;">
+                <i class="fas fa-sign-out-alt"></i> SALIR
+            </button>
+            <button class="btn-admin-config" onclick="validarAcceso()">
+                 <i class="fas fa-user-cog"></i> ADMIN
+            </button>
+        </div>
     </header>
 
     <main class="hmi-container">

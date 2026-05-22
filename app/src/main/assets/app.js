@@ -15,6 +15,7 @@ const LINK_DESCARGA_APK = "https://drive.google.com/uc?export=download&id=1nKGa8
 
 let database;
 let listenerConexionActivo = false;
+let notificacionConexionMostrada = false;
 let areaSeleccionadaPaso = "";
 let equiposActuales = [];
 let fotosBase64 = [];
@@ -32,9 +33,13 @@ function conectarFirebase() {
         if (!listenerConexionActivo) {
             database.ref('.info/connected').on('value', (snap) => {
                 if (snap.val() === true) {
-                    const role = localStorage.getItem('user_role') || 'LECTURA';
-                    const user = localStorage.getItem('user_name') || 'Invitado';
-                    notificar(`CONECTADO [MODO: ${role.toUpperCase()}]`, "exito");
+                    const role = sessionStorage.getItem('user_role') || 'LECTURA';
+                    const user = sessionStorage.getItem('user_name') || 'Invitado';
+
+                    if (sessionStorage.getItem('user_role') && !notificacionConexionMostrada) {
+                        notificar(`CONECTADO [MODO: ${role.toUpperCase()}]`, "exito");
+                        notificacionConexionMostrada = true;
+                    }
 
                     // RASTREO DE PRESENCIA CON ÚLTIMA CONEXIÓN (MAESTROS Y ESTÁNDAR)
                     if (user !== 'Invitado') {
@@ -153,7 +158,7 @@ function verificarIdentidad() {
 
     // Casos especiales (Maestro o Usuarios Locales)
     if (id.toLowerCase() === 'luis' || id === masterPass || id === "6969") {
-        localStorage.setItem('user_name', 'Luis');
+        sessionStorage.setItem('user_name', 'Luis');
         entrarArea(areaSeleccionadaPaso);
         return;
     }
@@ -161,7 +166,7 @@ function verificarIdentidad() {
     let esAdminLocal = false;
     Object.keys(localUsers).forEach(u => { if (id.toLowerCase() === u || id === localUsers[u].clave) esAdminLocal = true; });
     if (esAdminLocal) {
-        localStorage.setItem('user_name', id);
+        sessionStorage.setItem('user_name', id);
         entrarArea(areaSeleccionadaPaso);
         return;
     }
@@ -170,7 +175,7 @@ function verificarIdentidad() {
         database.ref('personal_autorizado/' + id).once('value').then(s => {
             const u = s.val();
             if (u && u.estado === 'activo') {
-                localStorage.setItem('user_name', u.nombre);
+                sessionStorage.setItem('user_name', u.nombre);
                 localStorage.setItem('user_id_std', id); // Guardar ID para rastreo
                 entrarArea(areaSeleccionadaPaso);
                 return;
@@ -180,7 +185,7 @@ function verificarIdentidad() {
                 let esAdminNube = false;
                 Object.keys(users).forEach(uname => { if (id.toLowerCase() === uname || id === users[uname].clave) esAdminNube = true; });
                 if (esAdminNube) {
-                    localStorage.setItem('user_name', id);
+                    sessionStorage.setItem('user_name', id);
                     entrarArea(areaSeleccionadaPaso);
                 } else {
                     const msg = document.getElementById('msg-error-id');
@@ -204,8 +209,8 @@ function confirmarAcceso() {
     // Lógica prioritaria para el Maestro (Luis)
     if(u === 'luis') {
         if(p === masterPass || p === 'luis2026' || p === '6969') {
-            localStorage.setItem('user_role', 'super');
-            localStorage.setItem('user_name', 'Luis');
+            sessionStorage.setItem('user_role', 'super');
+            sessionStorage.setItem('user_name', 'Luis');
             notificar("ACCESO MAESTRO CONCEDIDO", "exito");
             setTimeout(() => { window.location.replace("admin.html"); }, 600);
             return;
@@ -217,8 +222,8 @@ function confirmarAcceso() {
 
     // Lógica para usuarios locales (Caché offline)
     if (localUsers[u] && localUsers[u].clave === p) {
-        localStorage.setItem('user_role', localUsers[u].rol);
-        localStorage.setItem('user_name', u);
+        sessionStorage.setItem('user_role', localUsers[u].rol);
+        sessionStorage.setItem('user_name', u);
         window.location.replace("admin.html");
         return;
     }
@@ -230,8 +235,8 @@ function confirmarAcceso() {
             if(d && d.clave === p) {
                 localUsers[u] = d;
                 localStorage.setItem('user_db', JSON.stringify(localUsers));
-                localStorage.setItem('user_role', d.rol);
-                localStorage.setItem('user_name', u);
+                sessionStorage.setItem('user_role', d.rol);
+                sessionStorage.setItem('user_name', u);
                 window.location.replace("admin.html");
             }
             else notificar("DATOS INCORRECTOS", "error");
@@ -433,7 +438,12 @@ function cargarEquiposEdicion() {
 
     const render = () => {
         const cache = JSON.parse(localStorage.getItem('cache_' + area) || "{}");
-        let combinados = {...cache};
+        let combinados = {};
+
+        // Normalizar cache asegurando que cada objeto tenga su tag (la llave)
+        Object.keys(cache).forEach(k => {
+            combinados[k] = { ...cache[k], tag: cache[k].tag || k };
+        });
 
         let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
         colaEnv.filter(q => q.area === area).forEach(q => { combinados[q.tag] = q; });
@@ -483,34 +493,49 @@ function procesarCarga() {
 
     if (!tag || !nombre) { notificar("TAG Y NOMBRE REQUERIDOS", "error"); return; }
 
-    // VALIDACIÓN DE DUPLICADOS GLOBAL (En todas las áreas)
+    // VALIDACIÓN DE DUPLICADOS GLOBAL
     const areas = ["auxiliares", "turbina", "ciclo", "caldera", "calderas_auxiliares", "externas", "instrumentacion", "contra_incendio"];
     const colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     const colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
 
     let duplicadoEnArea = null;
 
-    // Buscar en los caches de todas las áreas y en la cola global
     for (const a of areas) {
         try {
             const cacheRaw = localStorage.getItem('cache_' + a);
-            const cacheArea = (cacheRaw && cacheRaw !== "undefined") ? JSON.parse(cacheRaw) : {};
+            if (!cacheRaw || cacheRaw === "undefined" || cacheRaw === "null") continue;
 
-            // Verificar TAG (Ignorar si está en cola de eliminación)
-            const estaEnColaDel = colaDel.some(d => d.tag === tag && d.area === a);
-            const existeTag = (cacheArea && cacheArea[tag]) || colaEnv.find(e => e.tag === tag && e.area === a);
+            const cacheArea = JSON.parse(cacheRaw);
+            const equiposArea = Object.entries(cacheArea).map(([t, e]) => ({ ...e, tag: e.tag || t }));
 
-            if (existeTag && !estaEnColaDel && (!tagOriginalEdicion || tag !== tagOriginalEdicion || a !== areaOriginalEdicion)) {
-                duplicadoEnArea = a;
-                break;
-            }
+            // Añadir los que están en cola de envío para esta área (si no están ya)
+            colaEnv.filter(e => e.area === a).forEach(e => {
+                if (!equiposArea.some(x => x.tag === e.tag)) equiposArea.push(e);
+            });
 
-            // Verificar Nombre
-            const equiposArea = cacheArea ? Object.values(cacheArea) : [];
-            const existeNom = equiposArea.find(e => e.nombre && e.nombre.toLowerCase() === nombre.toLowerCase()) ||
-                              colaEnv.find(e => e.nombre && e.nombre.toLowerCase() === nombre.toLowerCase() && e.area === a);
+            const conflicto = equiposArea.find(e => {
+                const eTag = (e.tag || "").toString().trim().toUpperCase();
 
-            if (existeNom && !estaEnColaDel && (!tagOriginalEdicion || tagOriginalEdicion !== (existeNom.tag || tag) || a !== areaOriginalEdicion)) {
+                // 1. IGNORAR si es el equipo que estamos editando exactamente
+                if (tagOriginalEdicion && areaOriginalEdicion) {
+                    if (eTag === tagOriginalEdicion.toString().trim().toUpperCase() && a === areaOriginalEdicion) {
+                        return false;
+                    }
+                }
+
+                // 2. IGNORAR si este registro encontrado está marcado para ser eliminado
+                if (colaDel.some(d => d.tag === eTag && d.area === a)) return false;
+
+                // 3. COMPARAR TAG
+                if (eTag === tag) return true;
+
+                // 4. COMPARAR NOMBRE
+                if (e.nombre && e.nombre.toLowerCase().trim() === nombre.toLowerCase().trim()) return true;
+
+                return false;
+            });
+
+            if (conflicto) {
                 duplicadoEnArea = a;
                 break;
             }
@@ -522,7 +547,7 @@ function procesarCarga() {
         return;
     }
 
-    const autor = localStorage.getItem('user_name') || 'Desconocido';
+    const autor = sessionStorage.getItem('user_name') || 'Desconocido';
     const fecha = new Date().toLocaleString();
 
     const equipo = {
@@ -605,7 +630,7 @@ function guardarPlanoGeneral() {
     const reader = new FileReader();
     reader.onload = (e) => {
         const id = "plano_" + Date.now();
-        const autor = localStorage.getItem('user_name') || 'Desconocido';
+        const autor = sessionStorage.getItem('user_name') || 'Desconocido';
         const fecha = new Date().toLocaleString();
         const data = { titulo: tit, foto: e.target.result, autor: autor, fecha: fecha };
 
@@ -699,7 +724,7 @@ function guardarDocumento() {
     const reader = new FileReader();
     reader.onload = (e) => {
         const id = "doc_" + Date.now();
-        const autor = localStorage.getItem('user_name') || 'Desconocido';
+        const autor = sessionStorage.getItem('user_name') || 'Desconocido';
         const fecha = new Date().toLocaleString();
         const ext = file.name.split('.').pop();
         const data = { titulo: tit, archivo: e.target.result, extension: ext, autor: autor, fecha: fecha };
@@ -953,6 +978,15 @@ function compartirApp() {
 
 function descargarApp() { if (typeof Android !== "undefined" && Android.downloadUpdate) Android.downloadUpdate(LINK_DESCARGA_APK); else window.open(LINK_DESCARGA_APK, '_blank'); }
 
+function cerrarSesion() {
+    sessionStorage.clear();
+    // Limpiamos también localStorage por si quedaron rastros antiguos
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_name');
+    notificar("SESIÓN CERRADA", "info");
+    setTimeout(() => { window.location.replace("bienvenida.html"); }, 800);
+}
+
 function verificarActualizaciones() { if (database) database.ref('config/version').on('value', (s) => { if (parseFloat(s.val()) > VERSION_APP) { const btn = document.getElementById('btn-descargar-bienvenida'); if(btn) btn.style.display = 'inline-flex'; } }); }
 
 // ================= CHAT IA ==================
@@ -1119,13 +1153,18 @@ function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {
 
 // ================= INICIALIZACIÓN ==================
 document.addEventListener('DOMContentLoaded', () => {
-    conectarFirebase(); const area = localStorage.getItem('area_actual'); const role = localStorage.getItem('user_role');
+    conectarFirebase(); const area = sessionStorage.getItem('area_actual'); const role = sessionStorage.getItem('user_role');
     const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = (area === 'Operaciones') ? 'flex' : 'none';
     const btnIA = document.getElementById('btn-ia-flotante'); if(btnIA) btnIA.style.display = 'block';
 
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
         cargarListaUsuarios(); cargarSolicitudesAcceso(); cargarListaPersonalAutorizado();
+    }
+
+    // Mostrar botón de logout si hay sesión activa
+    if((sessionStorage.getItem('user_role') || sessionStorage.getItem('user_name')) && document.getElementById('btn-logout')) {
+        document.getElementById('btn-logout').style.display = 'flex';
     }
 
     const a = document.getElementById('input-area'); if(a) { a.addEventListener('change', cargarEquiposEdicion); cargarEquiposEdicion(); }
@@ -1201,11 +1240,14 @@ function eliminarDocumento(a, i) {
 function solicitarEliminarU(u) { if(confirm("¿Borrar editor "+u+"?")) { if(database) database.ref('usuarios/'+u).remove(); } }
 function cargarParaEditar(j, area) {
     const eq = JSON.parse(decodeURIComponent(j));
-    tagOriginalEdicion = eq.tag;
-    areaOriginalEdicion = area;
-    document.getElementById('input-tag').value = eq.tag;
-    document.getElementById('input-nombre').value = eq.nombre;
-    document.getElementById('input-info').value = eq.info || "";
+    // Normalización estricta al cargar para editar
+    tagOriginalEdicion = (eq.tag || "").toString().trim().toUpperCase();
+    areaOriginalEdicion = (area || "").toString().trim();
+
+    if (document.getElementById('input-area')) document.getElementById('input-area').value = area;
+    if (document.getElementById('input-tag')) document.getElementById('input-tag').value = eq.tag || "";
+    if (document.getElementById('input-nombre')) document.getElementById('input-nombre').value = eq.nombre || "";
+    if (document.getElementById('input-info')) document.getElementById('input-info').value = eq.info || "";
     document.getElementById('input-operacion').value = eq.operacion || "";
     document.getElementById('input-ubicacion').value = eq.ubicacion || "";
     fotosBase64 = Array.isArray(eq.img) ? eq.img : (eq.img ? [eq.img] : []);

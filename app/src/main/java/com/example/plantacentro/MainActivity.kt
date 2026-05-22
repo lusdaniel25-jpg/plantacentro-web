@@ -67,7 +67,12 @@ class MainActivity : AppCompatActivity() {
         webSettings.useWideViewPort = true
         webSettings.loadWithOverviewMode = true
         webSettings.databaseEnabled = true
+        webSettings.domStorageEnabled = true
+        
+        // Optimización de Cache
+        // LOAD_DEFAULT usa el cache si es válido, si no, descarga.
         webSettings.cacheMode = WebSettings.LOAD_DEFAULT
+        webSettings.allowFileAccess = true
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
