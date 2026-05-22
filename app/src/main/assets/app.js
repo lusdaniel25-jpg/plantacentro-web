@@ -60,15 +60,23 @@ function conectarFirebase() {
                     const role = sessionStorage.getItem('user_role') || 'LECTURA';
                     const user = sessionStorage.getItem('user_name') || 'Invitado';
 
-                    if (sessionStorage.getItem('user_role') && !notificacionConexionMostrada) {
-                        notificar(`CONECTADO [MODO: ${role.toUpperCase()}]`, "exito");
+                    if ((sessionStorage.getItem('user_role') || sessionStorage.getItem('user_name')) && !notificacionConexionMostrada) {
+                        const roleName = (sessionStorage.getItem('user_role') || 'LECTURA').toUpperCase();
+                        notificar(`CONECTADO [MODO: ${roleName}]`, "exito");
                         notificacionConexionMostrada = true;
-                        notificacionOfflineMostrada = false; // Resetear para que pueda volver a salir si se cae
+                        notificacionOfflineMostrada = false;
                     }
+
+                    // Actualizar indicadores visuales globales
+                    document.querySelectorAll('.online-indicator').forEach(el => {
+                        el.classList.remove('status-offline');
+                        el.classList.add('status-online');
+                        el.title = "SISTEMA EN LÍNEA";
+                    });
 
                     // RASTREO DE PRESENCIA CON ÚLTIMA CONEXIÓN (MAESTROS Y ESTÁNDAR)
                     if (user !== 'Invitado') {
-                        const idRastreo = localStorage.getItem('user_id_std') || user.toLowerCase();
+                        const idRastreo = (localStorage.getItem('user_id_std') || user).toLowerCase().trim();
                         const presenceRef = database.ref('presencia/' + idRastreo);
                         presenceRef.set({ estado: 'online', ultima: Date.now() });
                         presenceRef.onDisconnect().set({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
@@ -82,6 +90,13 @@ function conectarFirebase() {
                         if(s.val()) localStorage.setItem('master_pass', s.val());
                     });
                 } else {
+                    // Actualizar indicadores visuales globales
+                    document.querySelectorAll('.online-indicator').forEach(el => {
+                        el.classList.remove('status-online');
+                        el.classList.add('status-offline');
+                        el.title = "SISTEMA SIN CONEXIÓN";
+                    });
+
                     if (!navigator.onLine && !notificacionOfflineMostrada) {
                         notificar("MODO OFFLINE: SIN CONEXIÓN A INTERNET", "info");
                         notificacionOfflineMostrada = true;
