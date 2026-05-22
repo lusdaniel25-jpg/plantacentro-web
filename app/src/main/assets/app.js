@@ -455,23 +455,27 @@ function procesarCarga() {
 
     // Buscar en los caches de todas las áreas y en la cola global
     for (const a of areas) {
-        const cacheArea = JSON.parse(localStorage.getItem('cache_' + a) || "{}");
+        try {
+            const cacheRaw = localStorage.getItem('cache_' + a);
+            const cacheArea = (cacheRaw && cacheRaw !== "undefined") ? JSON.parse(cacheRaw) : {};
 
-        // Verificar TAG
-        const existeTag = cacheArea[tag] || colaEnv.find(e => e.tag === tag && e.area === a);
-        if (existeTag && (!tagOriginalEdicion || tag !== tagOriginalEdicion || a !== areaOriginalEdicion)) {
-            duplicadoEnArea = a;
-            break;
-        }
+            // Verificar TAG
+            const existeTag = (cacheArea && cacheArea[tag]) || colaEnv.find(e => e.tag === tag && e.area === a);
+            if (existeTag && (!tagOriginalEdicion || tag !== tagOriginalEdicion || a !== areaOriginalEdicion)) {
+                duplicadoEnArea = a;
+                break;
+            }
 
-        // Verificar Nombre
-        const existeNom = Object.values(cacheArea).find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) ||
-                          colaEnv.find(e => e.nombre.toLowerCase() === nombre.toLowerCase() && e.area === a);
-        if (existeNom && (!tagOriginalEdicion || tagOriginalEdicion !== (existeNom.tag || tag) || a !== areaOriginalEdicion)) {
-            // Nota: Si estamos editando y el nombre coincide con otro equipo distinto al original
-            duplicadoEnArea = a;
-            break;
-        }
+            // Verificar Nombre
+            const equiposArea = cacheArea ? Object.values(cacheArea) : [];
+            const existeNom = equiposArea.find(e => e.nombre && e.nombre.toLowerCase() === nombre.toLowerCase()) ||
+                              colaEnv.find(e => e.nombre && e.nombre.toLowerCase() === nombre.toLowerCase() && e.area === a);
+
+            if (existeNom && (!tagOriginalEdicion || tagOriginalEdicion !== (existeNom.tag || tag) || a !== areaOriginalEdicion)) {
+                duplicadoEnArea = a;
+                break;
+            }
+        } catch (e) { console.error("Error validando área " + a, e); }
     }
 
     if (duplicadoEnArea) {
