@@ -257,7 +257,12 @@ function confirmarAcceso() {
 function entrarArea(area) { localStorage.setItem('area_actual', area); window.location.replace("index.html"); }
 
 // ================= HMI OPERACIONES Y GRÁFICA ==================
-function abrirSeccionOperacion() { document.getElementById('modal-operacion-especial').style.display = 'flex'; cargarDatosOperacion(); setTimeout(() => dibujarCurvaArranque(0), 300); }
+function abrirSeccionOperacion() {
+    document.getElementById('modal-operacion-especial').style.display = 'flex';
+    cargarDatosOperacion();
+    actualizarInterfazConversor(); // Inicializar calculadora
+    setTimeout(() => dibujarCurvaArranque(0), 300);
+}
 function cerrarSeccionOperacion() { document.getElementById('modal-operacion-especial').style.display = 'none'; }
 
 function cargarDatosOperacion() {
@@ -1075,6 +1080,102 @@ function analizarRendimiento() {
 
     dibujarGraficaArranqueCompleta(tiempo, mw, temp, criticidad);
     notificar("ANÁLISIS DE ARRANQUE REALIZADO", "exito");
+}
+
+// ================= CALCULADORA DE CONVERSIÓN TÉCNICA ==================
+function actualizarInterfazConversor() {
+    const tipo = document.getElementById('conv-tipo').value;
+    const cont = document.getElementById('inputs-conversor');
+    if(!cont) return;
+    cont.innerHTML = "";
+
+    const configs = {
+        presion: [
+            { id: 'c-bar', label: 'BAR (kg/cm²)', unit: 'bar' },
+            { id: 'c-psi', label: 'PSI (lb/in²)', unit: 'psi' },
+            { id: 'c-mpa', label: 'MegaPascales (MPa)', unit: 'mpa' },
+            { id: 'c-pa', label: 'KiloPascales (kPa)', unit: 'kpa' },
+            { id: 'c-mbar', label: 'mbar (Vacío)', unit: 'mbar' }
+        ],
+        temp: [
+            { id: 'c-celsius', label: 'Celsius (°C)', unit: 'c' },
+            { id: 'c-faren', label: 'Fahrenheit (°F)', unit: 'f' },
+            { id: 'c-kelvin', label: 'Kelvin (K)', unit: 'k' }
+        ],
+        flujo: [
+            { id: 'c-th', label: 'Toneladas/Hora (t/h)', unit: 'th' },
+            { id: 'c-kgs', label: 'Kilogramos/Seg (kg/s)', unit: 'kgs' },
+            { id: 'c-lbh', label: 'Libras/Hora (lb/h)', unit: 'lbh' }
+        ],
+        potencia: [
+            { id: 'c-mw', label: 'MegaWatts (MW)', unit: 'mw' },
+            { id: 'c-kw', label: 'KiloWatts (kW)', unit: 'kw' },
+            { id: 'c-hp', label: 'Caballos (HP)', unit: 'hp' },
+            { id: 'c-btu', label: 'BTU/h', unit: 'btu' }
+        ]
+    };
+
+    configs[tipo].forEach(conf => {
+        cont.innerHTML += `
+            <div>
+                <label style="font-size: 0.55rem; color: #aaa;">${conf.label}:</label>
+                <input type="number" id="${conf.id}" placeholder="0" oninput="ejecutarConversion('${conf.unit}', this.value)" style="padding: 8px; font-size: 0.85rem; border-color: rgba(255,204,0,0.3);">
+            </div>`;
+    });
+}
+
+function ejecutarConversion(unidad, val) {
+    const v = parseFloat(val);
+    if (isNaN(v)) return;
+
+    const tipo = document.getElementById('conv-tipo').value;
+
+    if (tipo === 'presion') {
+        let bar = 0;
+        if (unidad === 'bar') bar = v;
+        if (unidad === 'psi') bar = v * 0.0689476;
+        if (unidad === 'mbar') bar = v / 1000;
+        if (unidad === 'kpa') bar = v / 100;
+        if (unidad === 'mpa') bar = v * 10;
+
+        document.getElementById('c-bar').value = unidad === 'bar' ? val : bar.toFixed(4);
+        document.getElementById('c-psi').value = unidad === 'psi' ? val : (bar / 0.0689476).toFixed(2);
+        document.getElementById('c-mbar').value = unidad === 'mbar' ? val : (bar * 1000).toFixed(2);
+        document.getElementById('c-pa').value = unidad === 'kpa' ? val : (bar * 100).toFixed(2);
+        if(document.getElementById('c-mpa')) document.getElementById('c-mpa').value = unidad === 'mpa' ? val : (bar / 10).toFixed(4);
+    }
+    else if (tipo === 'temp') {
+        let c = 0;
+        if (unidad === 'c') c = v;
+        if (unidad === 'f') c = (v - 32) * 5/9;
+        if (unidad === 'k') c = v - 273.15;
+
+        document.getElementById('c-celsius').value = unidad === 'c' ? val : c.toFixed(2);
+        document.getElementById('c-faren').value = unidad === 'f' ? val : (c * 9/5 + 32).toFixed(2);
+        document.getElementById('c-kelvin').value = unidad === 'k' ? val : (c + 273.15).toFixed(2);
+    }
+    else if (tipo === 'flujo') {
+        let th = 0;
+        if (unidad === 'th') th = v;
+        if (unidad === 'kgs') th = v * 3.6;
+        if (unidad === 'lbh') th = v * 0.000453592;
+
+        document.getElementById('c-th').value = unidad === 'th' ? val : th.toFixed(3);
+        document.getElementById('c-kgs').value = unidad === 'kgs' ? val : (th / 3.6).toFixed(3);
+        document.getElementById('c-lbh').value = unidad === 'lbh' ? val : (th / 0.000453592).toFixed(2);
+    }
+    else if (tipo === 'potencia') {
+        let mw = 0;
+        if (unidad === 'mw') mw = v;
+        if (unidad === 'kw') mw = v / 1000;
+        if (unidad === 'hp') mw = v * 0.0007457;
+        if (unidad === 'btu') mw = v * 0.000000293071;
+
+        document.getElementById('c-mw').value = unidad === 'mw' ? val : mw.toFixed(4);
+        document.getElementById('c-kw').value = unidad === 'kw' ? val : (mw * 1000).toFixed(2);
+        document.getElementById('c-hp').value = unidad === 'hp' ? val : (mw / 0.0007457).toFixed(2);
+        document.getElementById('c-btu').value = unidad === 'btu' ? val : (mw / 0.000000293071).toFixed(2);
+    }
 }
 
 function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {

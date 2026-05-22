@@ -198,6 +198,24 @@
                 </div>
             </section>
 
+            <!-- CONVERSOR DE UNIDADES TERMOELÉCTRICAS -->
+            <section class="manual-seccion" style="background: rgba(255, 204, 0, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 204, 0, 0.2); margin-top: 20px;">
+                <h3 style="color: #ffcc00;"><i class="fas fa-calculator"></i> CONVERSOR DE UNIDADES TÉCNICAS</h3>
+                <div class="admin-form">
+                    <label style="color: #ffcc00;">SELECCIONE MAGNITUD:</label>
+                    <select id="conv-tipo" onchange="actualizarInterfazConversor()" style="margin-bottom: 15px; border-color: #ffcc00;">
+                        <option value="presion">PRESIÓN (bar, psi, MPa, kPa)</option>
+                        <option value="temp">TEMPERATURA (°C, °F, K)</option>
+                        <option value="flujo">FLUJO / MASA (t/h, kg/s, lb/h)</option>
+                        <option value="potencia">POTENCIA (MW, HP, BTU/h, kW)</option>
+                    </select>
+
+                    <div id="inputs-conversor" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </section>
+
             <button class="btn-cerrar" onclick="cerrarSeccionOperacion()">VOLVER AL HMI</button>
         </div>
     </div>
