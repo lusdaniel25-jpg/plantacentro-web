@@ -135,22 +135,25 @@ function conectarFirebase() {
 function sincronizarColas() {
     if (!database) return;
 
-    // Si no hay internet, Firebase guardará los cambios internamente (Persistencia Offline)
-    // Pero forzamos la sincronización manual de nuestras colas de localStorage
-    if (!navigator.onLine) {
-        console.log("Sincronización en espera: Sin internet");
-        return;
-    }
+    // Dejamos que Firebase maneje su propia cola interna si no hay conexión inmediata
+    // pero intentamos disparar el proceso siempre que la base de datos esté inicializada.
 
     let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
 
-    // 1. PRIMERO PROCESAR ELIMINACIONES para evitar borrar lo que acabamos de agregar
+    // 1. PRIMERO PROCESAR ELIMINACIONES
     colaDel.forEach(q => {
         database.ref('equipos/' + q.area + '/' + q.tag).remove().then(() => {
-            let actual = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
-            actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
-            localStorage.setItem('cola_eliminaciones', JSON.stringify(actual));
+            // Limpiar de cola de eliminaciones
+            let actualDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+            actualDel = actualDel.filter(i => !(i.tag === q.tag && i.area === q.area));
+            localStorage.setItem('cola_eliminaciones', JSON.stringify(actualDel));
+
+            // IMPORTANTE: Si estaba en cola de envíos (por un cambio de tag), también limpiarlo
+            let actualEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
+            actualEnv = actualEnv.filter(i => !(i.tag === q.tag && i.area === q.area));
+            localStorage.setItem('cola_envios', JSON.stringify(actualEnv));
+
             if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
             registrarLog("ELIMINÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
         });
@@ -250,7 +253,7 @@ function verificarIdentidad() {
         return;
     }
 
-    if (database && navigator.onLine) {
+    if (database) {
         database.ref('personal_autorizado/' + id).once('value').then(s => {
             const u = s.val();
             if (u && u.estado === 'activo') {
@@ -323,7 +326,7 @@ function confirmarAcceso() {
     }
 
     // Lógica para usuarios en la nube
-    if(database && navigator.onLine) {
+    if(database) {
         database.ref('usuarios/'+u).once('value').then(s => {
             const d = s.val();
             if(d && d.clave === p) {
@@ -455,30 +458,41 @@ function filtrarSistema(sistema) {
         } catch(e) { cache = {}; }
 
         let combinados = {};
-        // Normalizar cache: asegurar que cada objeto tenga su tag
+        // Normalizar cache: usar Tag en MAYÚSCULAS como llave única para evitar duplicados por minúsculas
         if (cache && typeof cache === 'object') {
             Object.keys(cache).forEach(k => {
                 const item = cache[k];
                 if (item) {
-                    combinados[k] = { ...item, tag: item.tag || k };
+                    const tagKey = (item.tag || k).toString().toUpperCase().trim();
+                    combinados[tagKey] = { ...item, tag: tagKey };
                 }
             });
         }
 
         let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
-        colaEnv.filter(q => q.area === sistema).forEach(q => { combinados[q.tag] = q; });
+        colaEnv.filter(q => q.area === sistema).forEach(q => {
+            const tagKey = q.tag.toUpperCase().trim();
+            combinados[tagKey] = q;
+        });
+
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
-        colaDel.filter(q => q.area === sistema).forEach(q => { delete combinados[q.tag]; });
+        colaDel.filter(q => q.area === sistema).forEach(q => {
+            delete combinados[q.tag.toUpperCase().trim()];
+        });
 
         let finalMap = new Map();
-        (DATOS_PLANTA[sistema] || []).forEach(eq => { if(eq.tag) finalMap.set(eq.tag, eq); });
-        Object.values(combinados).forEach(eq => { if(eq.tag) finalMap.set(eq.tag, eq); });
+        (DATOS_PLANTA[sistema] || []).forEach(eq => {
+            if(eq.tag) finalMap.set(eq.tag.toUpperCase().trim(), eq);
+        });
+        Object.values(combinados).forEach(eq => {
+            if(eq.tag) finalMap.set(eq.tag.toUpperCase().trim(), eq);
+        });
 
         equiposActuales = Array.from(finalMap.values());
         dibujarEquipos(equiposActuales);
     };
     renderLocal();
-    if (database && navigator.onLine) database.ref('equipos/' + sistema).on('value', (s) => {
+    if (database) database.ref('equipos/' + sistema).on('value', (s) => {
         const val = s.val();
         localStorage.setItem('cache_' + sistema, JSON.stringify(val || {}));
         renderLocal();
@@ -535,7 +549,7 @@ function cargarPlanosDelArea(area) {
         lista.innerHTML = "";
         Object.keys(combinados).forEach(id => {
             const p = combinados[id];
-            lista.innerHTML += `<div class="plano-item-card"><h4>${p.titulo}</h4>${p.autor ? `<small style="color:#aaa; display:block; margin-bottom:5px; font-size:0.6rem;">SUBIDO POR: ${p.autor.toUpperCase()}</small>` : ''}<img src="${p.foto}" onclick="verImagenFull('${p.foto}', '${p.titulo}')"></div>`;
+            lista.innerHTML += `<div class="plano-item-card"><h4>${p.titulo}</h4>${p.autor ? `<small style="color:#aaa; display:block; margin-bottom:2px; font-size:0.6rem;">SUBIDO POR: ${p.autor.toUpperCase()}</small>` : ''}${p.fecha ? `<small style="color:#666; display:block; margin-bottom:5px; font-size:0.55rem;">${p.fecha}</small>` : ''}<img src="${p.foto}" onclick="verImagenFull('${p.foto}', '${p.titulo}')"></div>`;
         });
         cont.style.display = Object.keys(combinados).length > 0 ? 'block' : 'none';
     };
@@ -564,7 +578,16 @@ function cargarDocsDelArea(area) {
 
         lista.innerHTML = "";
         Object.keys(combinados).forEach(id => {
-            lista.innerHTML += `<div class="user-item-modern"><b>${combinados[id].titulo}</b><button onclick="descargarDocumento('${combinados[id].archivo}', '${combinados[id].titulo}')">ABRIR</button></div>`;
+            const d = combinados[id];
+            lista.innerHTML += `
+                <div class="user-item-modern" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <b>${d.titulo}</b>
+                        ${d.autor ? `<br><small style="color:#aaa; font-size:0.65rem;">SUBIDO POR: ${d.autor.toUpperCase()}</small>` : ''}
+                        ${d.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${d.fecha})</small>` : ''}
+                    </div>
+                    <button onclick="descargarDocumento('${d.archivo}', '${d.titulo}')">ABRIR</button>
+                </div>`;
         });
         cont.style.display = Object.keys(combinados).length > 0 ? 'block' : 'none';
     };
@@ -583,15 +606,22 @@ function cargarEquiposEdicion() {
         const cache = JSON.parse(localStorage.getItem('cache_' + area) || "{}");
         let combinados = {};
 
-        // Normalizar cache asegurando que cada objeto tenga su tag (la llave)
+        // Normalizar cache asegurando que cada objeto tenga su tag y usar MAYÚSCULAS como llave
         Object.keys(cache).forEach(k => {
-            combinados[k] = { ...cache[k], tag: cache[k].tag || k };
+            const tagKey = (cache[k].tag || k).toString().toUpperCase().trim();
+            combinados[tagKey] = { ...cache[k], tag: tagKey };
         });
 
         let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
-        colaEnv.filter(q => q.area === area).forEach(q => { combinados[q.tag] = q; });
+        colaEnv.filter(q => q.area === area).forEach(q => {
+            const tagKey = q.tag.toUpperCase().trim();
+            combinados[tagKey] = q;
+        });
+
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
-        colaDel.filter(q => q.area === area).forEach(q => { delete combinados[q.tag]; });
+        colaDel.filter(q => q.area === area).forEach(q => {
+            delete combinados[q.tag.toUpperCase().trim()];
+        });
 
         const lista = document.getElementById('lista-edicion'); if(!lista) return; lista.innerHTML = "";
         Object.values(combinados).forEach(eq => {
@@ -605,7 +635,7 @@ function cargarEquiposEdicion() {
                             <b style="color: #ffcc00; font-size: 0.85rem;">${eq.nombre}</b><br>
                             <small style="color: #aaa; font-family: monospace; font-size: 0.7rem;">[ ${eq.tag} ]</small>
                             ${eq.editado_por ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${eq.editado_por.toUpperCase()}</small> <small style="color:#666; font-size:0.6rem;">(${eq.fecha_edicion})</small>` : ''}
-                            ${(!navigator.onLine && colaEnv.some(q=>q.tag===eq.tag && q.area===area)) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
+                            ${colaEnv.some(q=>q.tag===eq.tag && q.area===area) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
@@ -734,12 +764,15 @@ function cargarPlanosEdicionGeneral() {
 
         const lista = document.getElementById('lista-planos-edicion-general'); if(!lista) return; lista.innerHTML = "";
         Object.keys(combinados).forEach(id => {
+            const p = combinados[id];
             const isPending = colaEnv.some(q => q.id === id);
             lista.innerHTML += `
                 <div class="user-item-modern" style="border-left: 4px solid #00ccff; background: rgba(0,204,255,0.03); display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; border-radius: 10px;">
                     <div>
-                        <span>${combinados[id].titulo}</span>
-                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE)</small>' : ''}
+                        <b style="font-size:0.85rem;">${p.titulo}</b>
+                        ${p.autor ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${p.autor.toUpperCase()}</small>` : ''}
+                        ${p.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${p.fecha})</small>` : ''}
+                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                     </div>
                     <button onclick="eliminarPlanoGeneral('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.2rem;"><i class="fas fa-times-circle"></i></button>
                 </div>`;
@@ -837,14 +870,17 @@ function cargarDocsEdicion() {
 
         const lista = document.getElementById('lista-docs-edicion'); if(!lista) return; lista.innerHTML = "";
         Object.keys(combinados).forEach(id => {
+            const d = combinados[id];
             const isPending = colaEnv.some(q => q.id === id);
             lista.innerHTML += `
-                <div class="user-item-modern">
+                <div class="user-item-modern" style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <span>${combinados[id].titulo}</span>
-                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE)</small>' : ''}
+                        <b>${d.titulo}</b>
+                        ${d.autor ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${d.autor.toUpperCase()}</small>` : ''}
+                        ${d.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${d.fecha})</small>` : ''}
+                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                     </div>
-                    <button onclick="eliminarDocumento('${area}', '${id}')" style="color:red;">X</button>
+                    <button onclick="eliminarDocumento('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.1rem;"><i class="fas fa-trash-alt"></i></button>
                 </div>`;
         });
     };
