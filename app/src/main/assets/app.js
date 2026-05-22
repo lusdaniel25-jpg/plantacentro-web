@@ -129,6 +129,11 @@ function sincronizarColas() {
     });
 
     // Sincronizar Planos y Documentos (Mantenemos el orden estándar)
+    let colaPlEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+    let colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+    let colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+    let colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+
     colaPlEnv.forEach(q => {
         database.ref('planos/' + q.area + '/' + q.id).set(q.data).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
@@ -381,17 +386,41 @@ function filtrarSistema(sistema) {
     const busc = document.getElementById('contenedor-buscador'); if(busc) busc.style.display = 'block';
     cargarPlanosDelArea(sistema); cargarManualDelArea(sistema); cargarDocsDelArea(sistema);
     const renderLocal = () => {
-        const cache = JSON.parse(localStorage.getItem('cache_' + sistema) || "{}");
-        let combinados = {...cache};
+        const cacheRaw = localStorage.getItem('cache_' + sistema);
+        let cache = {};
+        try {
+            cache = JSON.parse(cacheRaw || "{}");
+        } catch(e) { cache = {}; }
+
+        let combinados = {};
+        // Normalizar cache: asegurar que cada objeto tenga su tag
+        if (cache && typeof cache === 'object') {
+            Object.keys(cache).forEach(k => {
+                const item = cache[k];
+                if (item) {
+                    combinados[k] = { ...item, tag: item.tag || k };
+                }
+            });
+        }
+
         let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
         colaEnv.filter(q => q.area === sistema).forEach(q => { combinados[q.tag] = q; });
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
         colaDel.filter(q => q.area === sistema).forEach(q => { delete combinados[q.tag]; });
-        let finalMap = new Map(); (DATOS_PLANTA[sistema] || []).forEach(eq => finalMap.set(eq.tag, eq)); Object.values(combinados).forEach(eq => finalMap.set(eq.tag, eq));
-        equiposActuales = Array.from(finalMap.values()); dibujarEquipos(equiposActuales);
+
+        let finalMap = new Map();
+        (DATOS_PLANTA[sistema] || []).forEach(eq => { if(eq.tag) finalMap.set(eq.tag, eq); });
+        Object.values(combinados).forEach(eq => { if(eq.tag) finalMap.set(eq.tag, eq); });
+
+        equiposActuales = Array.from(finalMap.values());
+        dibujarEquipos(equiposActuales);
     };
     renderLocal();
-    if (database && navigator.onLine) database.ref('equipos/' + sistema).on('value', (s) => { localStorage.setItem('cache_' + sistema, JSON.stringify(s.val() || {})); renderLocal(); });
+    if (database && navigator.onLine) database.ref('equipos/' + sistema).on('value', (s) => {
+        const val = s.val();
+        localStorage.setItem('cache_' + sistema, JSON.stringify(val || {}));
+        renderLocal();
+    });
 }
 
 function dibujarEquipos(equipos) {
@@ -402,17 +431,31 @@ function dibujarEquipos(equipos) {
 
 function verFicha(eq) {
     let imgH = ""; let imgs = Array.isArray(eq.img) ? eq.img : (eq.img ? [eq.img] : []);
-    imgs.forEach(i => imgH += `<img src="${i}" style="width:100%; border-radius:12px; border:2px solid #ffcc00; margin-top:15px;">`);
+    imgs.forEach(i => imgH += `<img src="${i}" style="width:100%; border-radius:12px; border:2px solid #ffcc00; margin-top:15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">`);
 
-    const registroH = eq.editado_por ? `<p style="font-size:0.7rem; color:#aaa; margin-top:15px; border-top:1px solid #333; padding-top:10px;"><i class="fas fa-history"></i> ÚLTIMO CAMBIO: ${eq.fecha_edicion} por ${eq.editado_por.toUpperCase()}</p>` : "";
+    const operacionH = eq.operacion ? `<div style="background:rgba(0,255,204,0.05); padding:12px; border-radius:10px; border-left:4px solid #00ffcc; margin-top:20px;"><h4 style="color:#00ffcc; margin-top:0; font-size:0.8rem; letter-spacing:1px;"><i class="fas fa-clipboard-check"></i> PROTOCOLO DE OPERACIÓN:</h4><p style="font-size:0.85rem; white-space:pre-wrap; color:#eee; margin-bottom:0; line-height:1.4;">${eq.operacion}</p></div>` : "";
+    const infoH = eq.info ? `<div style="margin-top:15px; color:#ddd; font-size:0.9rem; line-height:1.5;">${eq.info}</div>` : "";
+    const registroH = eq.editado_por ? `<p style="font-size:0.65rem; color:#666; margin-top:20px; border-top:1px solid #333; padding-top:12px; text-align:right;"><i class="fas fa-history"></i> ACTUALIZADO: ${eq.fecha_edicion} por ${eq.editado_por.toUpperCase()}</p>` : "";
 
-    document.getElementById('info-tecnica').innerHTML = `<h2 style="color:#ffcc00;">${eq.nombre}</h2><p style="color:#00ccff; font-family:monospace;">[ ${eq.tag} ]</p><p>${eq.info || ''}</p><p><b>UBICACIÓN:</b> ${eq.ubicacion || 'Planta Centro'}</p>${imgH}${registroH}`;
+    document.getElementById('info-tecnica').innerHTML = `
+        <h2 style="color:#ffcc00; margin-bottom:5px;">${eq.nombre}</h2>
+        <p style="color:#00ccff; font-family:monospace; font-size:0.9rem; margin-bottom:15px;">TAG: ${eq.tag}</p>
+        <div style="background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; margin-bottom:15px;">
+            <p style="margin:0; font-size:0.8rem;"><b>UBICACIÓN:</b> <span style="color:#ffcc00;">${eq.ubicacion || 'Planta Centro'}</span></p>
+        </div>
+        ${infoH}
+        ${operacionH}
+        ${imgH}
+        ${registroH}`;
     document.getElementById('modal-info').style.display = 'flex';
 }
 
 function filtrarPorTexto() {
     const txt = document.getElementById('input-busqueda').value.toLowerCase().trim();
-    const filtrados = equiposActuales.filter(e => e.nombre.toLowerCase().includes(txt) || e.tag.toLowerCase().includes(txt));
+    const filtrados = equiposActuales.filter(e =>
+        (e.nombre && e.nombre.toLowerCase().includes(txt)) ||
+        (e.tag && e.tag.toLowerCase().includes(txt))
+    );
     dibujarEquipos(filtrados);
     const cont = document.getElementById('contador-resultados'); if(cont) cont.innerText = filtrados.length + " REGISTROS ENCONTRADOS";
 }
