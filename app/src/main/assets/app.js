@@ -1030,10 +1030,10 @@ function cargarSolicitudesAcceso() {
 
         if(c) c.innerHTML = html || "<p style='color:#666; font-size:0.75rem; text-align:center;'>No hay solicitudes pendientes.</p>";
 
-        // NOTIFICACIÓN ACTIVA PARA EL MAESTRO
+        // NOTIFICACIÓN ACTIVA PARA EL MAESTRO (EMERGENTE)
         if (solicitudesVigilanteActivo && count > totalPendientesGlobal) {
-            notificar(`NUEVA SOLICITUD: ${count} PENDIENTE(S)`, "warning");
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración doble
+            notificar(`NUEVA SOLICITUD DE ACCESO: ${count} PENDIENTE(S)`, "warning", true);
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         }
 
         totalPendientesGlobal = count;
@@ -1177,8 +1177,13 @@ function publicarNuevaVersion() {
 }
 
 // ================= UTILIDADES ==================
-function notificar(msj, tipo = 'exito') {
+function notificar(msj, tipo = 'exito', emergente = false) {
     const msjUpper = msj.toUpperCase();
+
+    // Notificación Emergente (Nativa Android)
+    if (emergente && typeof Android !== "undefined" && Android.showNativeNotification) {
+        Android.showNativeNotification("HMI PLANTA CENTRO U6", msjUpper);
+    }
 
     const existentes = document.querySelectorAll('.toast-modern span');
     for (let a of existentes) { if (a.innerText === msjUpper) return; }
@@ -1209,7 +1214,8 @@ function monitorearActividad() {
         if (!logsVigilanteActivo) return;
         const log = snap.val();
         if (log.usuario.toLowerCase() !== 'luis') {
-            notificar(`ALERTA ACTIVIDAD: ${log.usuario.toUpperCase()} - ${log.accion}`, "warning");
+            notificar(`ALERTA ACTIVIDAD: ${log.usuario.toUpperCase()} - ${log.accion}`, "warning", true);
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
         }
     });
     setTimeout(() => { logsVigilanteActivo = true; }, 3000);
@@ -1739,7 +1745,7 @@ function escucharEstadoSolicitud(id) {
 
         if (!u) {
             if (esperando === id) {
-                notificar("HMI U6: ACCESO DENEGADO - CONSULTE CON EL ADMINISTRADOR", "error");
+                notificar("ACCESO DENEGADO - CONSULTE CON EL ADMINISTRADOR", "error", true);
                 localStorage.removeItem('esperando_aprobacion');
                 const msg = document.getElementById('msg-error-id');
                 if(msg) msg.innerText = "SOLICITUD RECHAZADA POR SEGURIDAD";
@@ -1749,7 +1755,7 @@ function escucharEstadoSolicitud(id) {
         }
 
         if (u.estado === 'activo') {
-            notificar("HMI U6: ACCESO AUTORIZADO - BIENVENIDO AL SISTEMA", "exito");
+            notificar("ACCESO AUTORIZADO - BIENVENIDO AL SISTEMA", "exito", true);
             localStorage.removeItem('esperando_aprobacion');
             const msg = document.getElementById('msg-error-id');
             if(msg) {
