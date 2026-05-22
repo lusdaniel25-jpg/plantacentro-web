@@ -216,24 +216,13 @@
                     </div>
                 </div>
 
-                <!-- ACORDEÓN PARA PLANOS (SOLO MAESTRO) -->
-                <div id="edit-planos-container">
-                    <button class="accordion-admin" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('active')">
-                        GESTIÓN DE PLANOS TÉCNICOS <i class="fas fa-chevron-down"></i>
-                    </button>
-                    <div class="panel-admin">
-                        <label>TÍTULO DEL PLANO:</label>
-                        <input type="text" id="input-plano-titulo" placeholder="Ej: Diagrama de Tuberías P&ID">
-                        <label style="margin-top:10px;">FOTO DEL PLANO:</label>
-                        <input type="file" id="input-plano-foto" accept="image/*" style="background:#0a0a0a; color:white; padding:10px; width:100%; border-radius:8px; border:1px solid #333;">
-                        <div id="preview-plano" style="margin-top:10px; display:none;"><img id="img-preview-plano" style="width:100%; border-radius:8px; border:1px solid #00ffcc;"></div>
-                        <button onclick="guardarPlano()" class="btn-guardar-admin" style="background:#27ae60; margin-top:15px;"><i class="fas fa-upload"></i> SUBIR PLANO A LA NUBE</button>
-                        <div id="lista-planos-edit" style="margin-top:20px; display:flex; flex-direction:column; gap:8px;"></div>
-                    </div>
-                </div>
 
-                <label style="margin-top:20px;">CLAVE DE AUTORIZACIÓN:</label>
-                <input type="password" id="auth-op-pass" placeholder="Confirmar identidad">
+
+                <label style="margin-top:20px;">CLAVE DE AUTORIZACIÓN (LUIS):</label>
+                <div class="password-wrapper">
+                    <input type="password" id="auth-op-pass" placeholder="Ingrese clave maestra">
+                    <i class="fas fa-eye toggle-password" id="toggle-auth-op-pass" onclick="togglePasswordVisibility('auth-op-pass', 'toggle-auth-op-pass')"></i>
+                </div>
 
                 <button onclick="guardarParametrosOperacion()" class="btn-guardar-admin" style="background: #00ffcc; color: black; margin-top: 20px;">
                     ACTUALIZAR DATOS MAESTROS

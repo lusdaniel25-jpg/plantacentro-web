@@ -35,6 +35,11 @@ function conectarFirebase() {
                     notificar("SISTEMA CONECTADO", "exito");
                     verificarActualizaciones();
                     sincronizarColas();
+
+                    // Sincronizar clave maestra desde la nube
+                    database.ref('config/master_pass').on('value', s => {
+                        if(s.val()) localStorage.setItem('master_pass', s.val());
+                    });
                 } else {
                     notificar("MODO OFFLINE", "info");
                 }
@@ -171,10 +176,6 @@ function dibujarCurvaArranque(currentMW = 0) {
 
 // ================= CONFIGURACIÓN PROTOCOLOS OPERACIÓN ==================
 function editarParametrosOperacion() {
-    const pass = prompt("IDENTIFICACIÓN TÉCNICA REQUERIDA (LUIS):");
-    const masterPass = localStorage.getItem('master_pass') || 'luis2026';
-    if(pass !== masterPass && pass !== "6969") { notificar("ACCESO DENEGADO", "error"); return; }
-
     document.getElementById('modal-edit-op').style.display = 'flex';
     const d = JSON.parse(localStorage.getItem('cache_operacion_u6') || "{}");
     document.getElementById('edit-op-presion').value = d.presion || "";
@@ -193,11 +194,21 @@ function agregarInputPaso(val = "") {
 }
 
 function guardarParametrosOperacion() {
+    const pass = document.getElementById('auth-op-pass').value.trim();
+    const masterPass = localStorage.getItem('master_pass') || 'luis2026';
+
+    if(pass !== masterPass && pass !== "6969") {
+        notificar("CLAVE DE AUTORIZACIÓN INCORRECTA", "error");
+        return;
+    }
+
     const pasos = Array.from(document.querySelectorAll('.input-paso-dinamico')).map(i => i.value).filter(v => v.trim() !== "");
     const data = { pasosArr: pasos, presion: document.getElementById('edit-op-presion').value, flujo: document.getElementById('edit-op-flujo').value, nivel: document.getElementById('edit-op-nivel').value, mw: document.getElementById('edit-op-mw').value };
     localStorage.setItem('cache_operacion_u6', JSON.stringify(data));
     if(database) database.ref('operacion/unidad6').set(data);
-    notificar("PROTOCOLOS ACTUALIZADOS"); document.getElementById('modal-edit-op').style.display = 'none';
+    notificar("PROTOCOLOS ACTUALIZADOS");
+    document.getElementById('modal-edit-op').style.display = 'none';
+    document.getElementById('auth-op-pass').value = ""; // Limpiar clave
     renderizarDatosOperacion(data);
 }
 
