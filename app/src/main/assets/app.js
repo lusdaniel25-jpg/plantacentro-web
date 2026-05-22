@@ -938,6 +938,21 @@ function eliminarEquipo(a, t) {
         sincronizarColas();
     }
 }
+function eliminarDocumento(a, i) {
+    if(confirm("¿Borrar documento?")) {
+        let colaDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+        colaDel.push({ area: a, id: i });
+        localStorage.setItem('cola_docs_del', JSON.stringify(colaDel));
+
+        let colaEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+        colaEnv = colaEnv.filter(item => item.id !== i);
+        localStorage.setItem('cola_docs_envios', JSON.stringify(colaEnv));
+
+        notificar("BORRADO PENDIENTE");
+        cargarDocsEdicion();
+        sincronizarColas();
+    }
+}
 function solicitarEliminarU(u) { if(confirm("¿Borrar editor "+u+"?")) { if(database) database.ref('usuarios/'+u).remove(); } }
 function cargarParaEditar(j, area) {
     const eq = JSON.parse(decodeURIComponent(j));
