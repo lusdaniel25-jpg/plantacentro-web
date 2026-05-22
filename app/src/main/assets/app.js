@@ -76,10 +76,36 @@ function conectarFirebase() {
 
                     // RASTREO DE PRESENCIA CON ÚLTIMA CONEXIÓN (MAESTROS Y ESTÁNDAR)
                     if (user !== 'Invitado') {
-                        const idRastreo = (localStorage.getItem('user_id_std') || user).toLowerCase().trim();
-                        const presenceRef = database.ref('presencia/' + idRastreo);
-                        presenceRef.set({ estado: 'online', ultima: Date.now() });
-                        presenceRef.onDisconnect().set({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
+                        const role = sessionStorage.getItem('user_role');
+                        let idRastreo = "";
+
+                        // Si es Lector, usamos su Cédula. Si es Admin/Editor, usamos su nombre de usuario.
+                        if (role === 'super' || role === 'editor') {
+                            idRastreo = user.toLowerCase().trim();
+                        } else {
+                            // Si no hay rol, comprobamos si tiene un ID de lector guardado
+                            const savedId = localStorage.getItem('user_id_std');
+                            idRastreo = (savedId || user).toLowerCase().trim();
+                        }
+
+                        if (idRastreo) {
+                            const presenceRef = database.ref('presencia/' + idRastreo);
+
+                            // Limpiar cualquier onDisconnect previo para evitar duplicados
+                            presenceRef.onDisconnect().cancel();
+
+                            // Establecer estado ONLINE con marca de tiempo actual del servidor
+                            presenceRef.update({
+                                estado: 'online',
+                                ultima: firebase.database.ServerValue.TIMESTAMP
+                            });
+
+                            // Programar estado OFFLINE cuando se pierda la conexión
+                            presenceRef.onDisconnect().update({
+                                estado: 'offline',
+                                ultima: firebase.database.ServerValue.TIMESTAMP
+                            });
+                        }
                     }
 
                     verificarActualizaciones();
@@ -258,6 +284,7 @@ function confirmarAcceso() {
     // Lógica prioritaria para el Maestro (Luis)
     if(u === 'luis') {
         if(p === masterPass || p === 'luis2026' || p === '6969') {
+            localStorage.removeItem('user_id_std'); // LIMPIAR ID DE LECTOR PARA EVITAR CONFLICTOS DE PRESENCIA
             sessionStorage.setItem('user_role', 'super');
             sessionStorage.setItem('user_name', 'Luis');
             notificar("ACCESO MAESTRO CONCEDIDO", "exito");
@@ -271,6 +298,7 @@ function confirmarAcceso() {
 
     // Lógica para usuarios locales (Caché offline)
     if (localUsers[u] && localUsers[u].clave === p) {
+        localStorage.removeItem('user_id_std'); // LIMPIAR ID DE LECTOR
         sessionStorage.setItem('user_role', localUsers[u].rol);
         sessionStorage.setItem('user_name', u);
         window.location.replace("admin.html");
@@ -282,6 +310,7 @@ function confirmarAcceso() {
         database.ref('usuarios/'+u).once('value').then(s => {
             const d = s.val();
             if(d && d.clave === p) {
+                localStorage.removeItem('user_id_std'); // LIMPIAR ID DE LECTOR
                 localUsers[u] = d;
                 localStorage.setItem('user_db', JSON.stringify(localUsers));
                 sessionStorage.setItem('user_role', d.rol);
@@ -844,30 +873,46 @@ function guardarDocumento() {
 function cargarListaUsuarios() {
     const l = document.getElementById('lista-usuarios'); if(!l) return;
 
-    // Escuchar cambios en usuarios y presencia simultáneamente
-    database.ref('usuarios').on('value', s_us => {
-        database.ref('presencia').on('value', s_pr => {
-            const us = s_us.val() || {};
-            const pr = s_pr.val() || {};
-            l.innerHTML = "";
+    let usuariosData = {};
+    let presenciaData = {};
 
-            if(!us['luis']) {
-                us['luis'] = { nombre: 'luis', clave: localStorage.getItem('master_pass') || 'luis2026', rol: 'super' };
-            }
+    const render = () => {
+        l.innerHTML = "";
+        const us = {...usuariosData};
+        const pr = presenciaData;
 
-            const maestros = Object.keys(us).filter(u => us[u].rol === 'super');
-            const editores = Object.keys(us).filter(u => us[u].rol !== 'super');
+        if(!us['luis']) {
+            us['luis'] = { nombre: 'luis', clave: localStorage.getItem('master_pass') || 'luis2026', rol: 'super' };
+        }
 
-            if(maestros.length > 0) {
-                l.innerHTML += "<h4 style='color:#ff4444; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-crown'></i> MAESTROS (ACCESO TOTAL):</h4>";
-                maestros.forEach(u => l.innerHTML += generarItemUsuario(u, us[u], pr[u.toLowerCase()]));
-            }
+        const maestros = Object.keys(us).filter(u => us[u].rol === 'super');
+        const editores = Object.keys(us).filter(u => us[u].rol !== 'super');
 
-            if(editores.length > 0) {
-                l.innerHTML += "<h4 style='color:#2ecc71; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-user-edit'></i> EDITORES TÉCNICOS:</h4>";
-                editores.forEach(u => l.innerHTML += generarItemUsuario(u, us[u], pr[u.toLowerCase()]));
-            }
-        });
+        if(maestros.length > 0) {
+            l.innerHTML += "<h4 style='color:#ff4444; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-crown'></i> MAESTROS (ACCESO TOTAL):</h4>";
+            maestros.forEach(u => {
+                const searchKey = u.toLowerCase().trim();
+                l.innerHTML += generarItemUsuario(u, us[u], pr[searchKey]);
+            });
+        }
+
+        if(editores.length > 0) {
+            l.innerHTML += "<h4 style='color:#2ecc71; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-user-edit'></i> EDITORES TÉCNICOS:</h4>";
+            editores.forEach(u => {
+                const searchKey = u.toLowerCase().trim();
+                l.innerHTML += generarItemUsuario(u, us[u], pr[searchKey]);
+            });
+        }
+    };
+
+    database.ref('usuarios').on('value', s => {
+        usuariosData = s.val() || {};
+        render();
+    });
+
+    database.ref('presencia').on('value', s => {
+        presenciaData = s.val() || {};
+        render();
     });
 }
 
@@ -878,22 +923,26 @@ function generarItemUsuario(u, data, presenceObj) {
     const etiqueta = esMaestro ? 'MAESTRO / ADMINISTRADOR' : 'EDITOR TÉCNICO';
     const esRoot = u === 'luis';
 
-    const estado = presenceObj ? presenceObj.estado : 'offline';
-    const ultima = presenceObj ? presenceObj.ultima : null;
+    const estado = (presenceObj && presenceObj.estado) ? presenceObj.estado : 'offline';
+    const ultima = (presenceObj && presenceObj.ultima) ? presenceObj.ultima : null;
 
     // Clase del punto según estado
     const statusClass = estado === 'online' ? 'status-online' : 'status-offline';
 
     let infoConexion = "";
     if (estado === 'online') {
-        infoConexion = '<small style="color:#2ecc71; font-weight:bold;">EN LÍNEA AHORA</small>';
+        infoConexion = '<small style="color:#2ecc71; font-weight:bold;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> EN LÍNEA AHORA</small>';
     } else if (ultima) {
         const d = new Date(ultima);
+        const hoy = new Date();
+        const esHoy = d.toDateString() === hoy.toDateString();
+
         const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const dateStr = d.toLocaleDateString();
-        infoConexion = `<small style="color:#666;">Última vez: ${dateStr} ${timeStr}</small>`;
+        const dateStr = esHoy ? "Hoy" : d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+
+        infoConexion = `<small style="color:#888;">Última vez: ${dateStr} ${timeStr}</small>`;
     } else {
-        infoConexion = '<small style="color:#666;">Sin registro de actividad</small>';
+        infoConexion = '<small style="color:#666;">Sin actividad reciente</small>';
     }
 
     return `
@@ -985,48 +1034,64 @@ function crearNuevoEditor() {
 function cargarListaPersonalAutorizado() {
     const c = document.getElementById('lista-personal-completa'); if(!c) return;
 
-    database.ref('personal_autorizado').on('value', s_pa => {
-        database.ref('presencia').on('value', s_pr => {
-            const data = s_pa.val() || {};
-            const pr = s_pr.val() || {};
-            c.innerHTML = "<h4 style='color:#ffcc00; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'>PERSONAL CON ACCESO (LECTURA):</h4>";
-            let hayActivos = false;
+    let personalData = {};
+    let presenciaData = {};
 
-            Object.keys(data).forEach(id => {
-                if(data[id].estado === 'activo') {
-                    hayActivos = true;
-                    const pres = pr[id] || { estado: 'offline', ultima: null };
-                    const statusClass = pres.estado === 'online' ? 'status-online' : 'status-offline';
+    const render = () => {
+        const data = personalData;
+        const pr = presenciaData;
+        c.innerHTML = "<h4 style='color:#ffcc00; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'>PERSONAL CON ACCESO (LECTURA):</h4>";
+        let hayActivos = false;
 
-                    let infoConexion = "";
-                    if (pres.estado === 'online') {
-                        infoConexion = '<small style="color:#2ecc71; font-weight:bold;">EN LÍNEA</small>';
-                    } else if (pres.ultima) {
-                        const d = new Date(pres.ultima);
-                        infoConexion = `<small style="color:#666;">Visto: ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small>`;
-                    } else {
-                        infoConexion = '<small style="color:#666;">Sin registro</small>';
-                    }
+        Object.keys(data).forEach(id => {
+            if(data[id].estado === 'activo') {
+                hayActivos = true;
+                const searchKey = id.toString().toLowerCase().trim();
+                const pres = (pr && pr[searchKey]) ? pr[searchKey] : { estado: 'offline', ultima: null };
+                const statusClass = pres.estado === 'online' ? 'status-online' : 'status-offline';
 
-                    c.innerHTML += `
-                    <div class="user-item-modern" style="border-left:4px solid #2ecc71; background:rgba(46,204,113,0.05); display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
-                        <div style="text-align:left; display: flex; align-items: center; gap: 10px;">
-                            <div class="status-dot ${statusClass}"></div>
-                            <div>
-                                <b style="color:#fff; font-size:0.85rem;">${data[id].nombre}</b><br>
-                                ${infoConexion}<br>
-                                <small style="color:#aaa; font-family:monospace; font-size:0.7rem;">CÉDULA: ${id}</small>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:10px;">
-                            <button onclick="prepararEdicionAutorizado('${id}', '${data[id].nombre}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
-                            <button onclick="eliminarAutorizado('${id}')" style="background:rgba(255,68,68,0.1); border:1px solid #ff4444; color:#ff4444; padding:5px 8px; border-radius:6px;"><i class="fas fa-trash-alt"></i></button>
-                        </div>
-                    </div>`;
+                let infoConexion = "";
+                if (pres.estado === 'online') {
+                    infoConexion = '<small style="color:#2ecc71; font-weight:bold;"><i class="fas fa-circle" style="font-size:0.5rem;"></i> EN LÍNEA</small>';
+                } else if (pres.ultima) {
+                    const d = new Date(pres.ultima);
+                    const hoy = new Date();
+                    const esHoy = d.toDateString() === hoy.toDateString();
+                    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = esHoy ? "Hoy" : d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+                    infoConexion = `<small style="color:#888;">Última vez: ${dateStr} ${timeStr}</small>`;
+                } else {
+                    infoConexion = '<small style="color:#666;">Sin registro</small>';
                 }
-            });
-            if(!hayActivos) c.innerHTML += "<p style='color:#666; font-size:0.7rem; text-align:center;'>No hay personal registrado.</p>";
+
+                c.innerHTML += `
+                <div class="user-item-modern" style="border-left:4px solid #2ecc71; background:rgba(46,204,113,0.05); display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
+                    <div style="text-align:left; display: flex; align-items: center; gap: 10px;">
+                        <div class="status-dot ${statusClass}"></div>
+                        <div>
+                            <b style="color:#fff; font-size:0.85rem;">${data[id].nombre}</b><br>
+                            ${infoConexion}<br>
+                            <small style="color:#aaa; font-family:monospace; font-size:0.7rem;">CÉDULA: ${id}</small>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="prepararEdicionAutorizado('${id}', '${data[id].nombre}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
+                        <button onclick="eliminarAutorizado('${id}')" style="background:rgba(255,68,68,0.1); border:1px solid #ff4444; color:#ff4444; padding:5px 8px; border-radius:6px;"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>`;
+            }
         });
+        if(!hayActivos) c.innerHTML += "<p style='color:#666; font-size:0.7rem; text-align:center;'>No hay personal registrado.</p>";
+    };
+
+    database.ref('personal_autorizado').on('value', s => {
+        personalData = s.val() || {};
+        render();
+    });
+
+    database.ref('presencia').on('value', s => {
+        presenciaData = s.val() || {};
+        render();
     });
 }
 
