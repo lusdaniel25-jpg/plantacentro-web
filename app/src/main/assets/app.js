@@ -53,7 +53,12 @@ function sincronizarColas() {
     if (!database || !navigator.onLine) return;
     let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+    let colaPlEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+    let colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+    let colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+    let colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
 
+    // Sincronizar Equipos
     colaEnv.forEach(q => {
         database.ref('equipos/' + q.area + '/' + q.tag).set(q).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_envios') || "[]");
@@ -62,12 +67,45 @@ function sincronizarColas() {
             notificar("SINCRONIZADO: " + q.tag);
         });
     });
-
     colaDel.forEach(q => {
         database.ref('equipos/' + q.area + '/' + q.tag).remove().then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
             actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_eliminaciones', JSON.stringify(actual));
+        });
+    });
+
+    // Sincronizar Planos
+    colaPlEnv.forEach(q => {
+        database.ref('planos/' + q.area + '/' + q.id).set(q.data).then(() => {
+            let actual = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+            actual = actual.filter(i => i.id !== q.id);
+            localStorage.setItem('cola_planos_envios', JSON.stringify(actual));
+            notificar("PLANO SINCRONIZADO: " + q.data.titulo);
+        });
+    });
+    colaPlDel.forEach(q => {
+        database.ref('planos/' + q.area + '/' + q.id).remove().then(() => {
+            let actual = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+            actual = actual.filter(i => i.id !== q.id);
+            localStorage.setItem('cola_planos_del', JSON.stringify(actual));
+        });
+    });
+
+    // Sincronizar Documentos
+    colaDocEnv.forEach(q => {
+        database.ref('documentos/' + q.area + '/' + q.id).set(q.data).then(() => {
+            let actual = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+            actual = actual.filter(i => i.id !== q.id);
+            localStorage.setItem('cola_docs_envios', JSON.stringify(actual));
+            notificar("DOC SINCRONIZADO: " + q.data.titulo);
+        });
+    });
+    colaDocDel.forEach(q => {
+        database.ref('documentos/' + q.area + '/' + q.id).remove().then(() => {
+            let actual = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+            actual = actual.filter(i => i.id !== q.id);
+            localStorage.setItem('cola_docs_del', JSON.stringify(actual));
         });
     });
 }
@@ -293,9 +331,25 @@ function filtrarPorTexto() {
 
 function cargarPlanosDelArea(area) {
     const cont = document.getElementById('contenedor-planos-area'); const lista = document.getElementById('lista-planos-area'); if(!cont || !lista) return;
-    const render = (datos) => { lista.innerHTML = ""; Object.keys(datos).forEach(id => { lista.innerHTML += `<div class="plano-item-card"><h4>${datos[id].titulo}</h4><img src="${datos[id].foto}" onclick="verImagenFull('${datos[id].foto}', '${datos[id].titulo}')"></div>`; }); cont.style.display = Object.keys(datos).length > 0 ? 'block' : 'none'; };
-    const cache = JSON.parse(localStorage.getItem('cache_planos_' + area) || "{}"); render(cache);
-    if(database) database.ref('planos/'+area).on('value', s => { render(s.val() || {}); });
+    const render = () => {
+        const cache = JSON.parse(localStorage.getItem('cache_planos_' + area) || "{}");
+        let combinados = {...cache};
+        let colaEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+        colaEnv.filter(q => q.area === area).forEach(q => { combinados[q.id] = q.data; });
+        let colaDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+        colaDel.filter(q => q.area === area).forEach(q => { delete combinados[q.id]; });
+
+        lista.innerHTML = "";
+        Object.keys(combinados).forEach(id => {
+            lista.innerHTML += `<div class="plano-item-card"><h4>${combinados[id].titulo}</h4><img src="${combinados[id].foto}" onclick="verImagenFull('${combinados[id].foto}', '${combinados[id].titulo}')"></div>`;
+        });
+        cont.style.display = Object.keys(combinados).length > 0 ? 'block' : 'none';
+    };
+    render();
+    if(database) database.ref('planos/'+area).on('value', s => {
+        localStorage.setItem('cache_planos_' + area, JSON.stringify(s.val() || {}));
+        render();
+    });
 }
 
 function cargarManualDelArea(area) {
@@ -306,10 +360,24 @@ function cargarManualDelArea(area) {
 
 function cargarDocsDelArea(area) {
     const cont = document.getElementById('contenedor-docs-area'); const lista = document.getElementById('lista-docs-area'); if(!cont || !lista) return;
+    const render = () => {
+        const cache = JSON.parse(localStorage.getItem('cache_docs_' + area) || "{}");
+        let combinados = {...cache};
+        let colaEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+        colaEnv.filter(q => q.area === area).forEach(q => { combinados[q.id] = q.data; });
+        let colaDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+        colaDel.filter(q => q.area === area).forEach(q => { delete combinados[q.id]; });
+
+        lista.innerHTML = "";
+        Object.keys(combinados).forEach(id => {
+            lista.innerHTML += `<div class="user-item-modern"><b>${combinados[id].titulo}</b><button onclick="descargarDocumento('${combinados[id].archivo}', '${combinados[id].titulo}')">ABRIR</button></div>`;
+        });
+        cont.style.display = Object.keys(combinados).length > 0 ? 'block' : 'none';
+    };
+    render();
     if(database) database.ref('documentos/'+area).on('value', s => {
-        const d = s.val() || {}; lista.innerHTML = "";
-        Object.keys(d).forEach(id => lista.innerHTML += `<div class="user-item-modern"><b>${d[id].titulo}</b><button onclick="descargarDocumento('${d[id].archivo}', '${d[id].titulo}')">ABRIR</button></div>`);
-        cont.style.display = Object.keys(d).length > 0 ? 'block' : 'none';
+        localStorage.setItem('cache_docs_' + area, JSON.stringify(s.val() || {}));
+        render();
     });
 }
 
@@ -388,29 +456,79 @@ function procesarCarga() {
 
 function cargarPlanosEdicionGeneral() {
     const area = document.getElementById('input-plano-area').value;
-    const cache = JSON.parse(localStorage.getItem('cache_planos_' + area) || "{}");
-    const render = (datos) => {
+    const render = () => {
+        const cache = JSON.parse(localStorage.getItem('cache_planos_' + area) || "{}");
+        let combinados = {...cache};
+        let colaEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+        colaEnv.filter(q => q.area === area).forEach(q => { combinados[q.id] = q.data; });
+        let colaDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+        colaDel.filter(q => q.area === area).forEach(q => { delete combinados[q.id]; });
+
         const lista = document.getElementById('lista-planos-edicion-general'); if(!lista) return; lista.innerHTML = "";
-        Object.keys(datos).forEach(id => {
-            lista.innerHTML += `<div class="user-item-modern" style="border-left: 4px solid #00ccff; background: rgba(0,204,255,0.03); display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; border-radius: 10px;"><span>${datos[id].titulo}</span><button onclick="eliminarPlanoGeneral('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.2rem;"><i class="fas fa-times-circle"></i></button></div>`;
+        Object.keys(combinados).forEach(id => {
+            const isPending = colaEnv.some(q => q.id === id);
+            lista.innerHTML += `
+                <div class="user-item-modern" style="border-left: 4px solid #00ccff; background: rgba(0,204,255,0.03); display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 8px; border-radius: 10px;">
+                    <div>
+                        <span>${combinados[id].titulo}</span>
+                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE)</small>' : ''}
+                    </div>
+                    <button onclick="eliminarPlanoGeneral('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.2rem;"><i class="fas fa-times-circle"></i></button>
+                </div>`;
         });
     };
-    render(cache);
-    if(database && navigator.onLine) database.ref('planos/'+area).once('value').then(s => { render(s.val() || {}); });
+    render();
+    if(database) {
+        database.ref('planos/'+area).off();
+        database.ref('planos/'+area).on('value', s => {
+            localStorage.setItem('cache_planos_' + area, JSON.stringify(s.val() || {}));
+            render();
+        });
+    }
 }
 
 function guardarPlanoGeneral() {
     const area = document.getElementById('input-plano-area').value;
     const tit = document.getElementById('input-plano-titulo-general').value.trim();
-    const file = document.getElementById('input-plano-foto-general').files[0];
-    if(!tit || !file) return;
+    const fileInput = document.getElementById('input-plano-foto-general');
+    const file = fileInput.files[0];
+    if(!tit || !file) { notificar("TÍTULO E IMAGEN REQUERIDOS", "error"); return; }
+
     const reader = new FileReader();
     reader.onload = (e) => {
-        const id = Date.now(); const data = { titulo: tit, foto: e.target.result };
-        if(database) database.ref('planos/'+area+'/'+id).set(data);
-        notificar("PLANO GUARDADO"); cargarPlanosEdicionGeneral();
+        const id = "plano_" + Date.now();
+        const data = { titulo: tit, foto: e.target.result };
+
+        let cola = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+        cola.push({ area, id, data });
+        localStorage.setItem('cola_planos_envios', JSON.stringify(cola));
+
+        notificar("PLANO EN COLA DE SUBIDA");
+        document.getElementById('input-plano-titulo-general').value = "";
+        fileInput.value = "";
+        const txt = document.getElementById('txt-plano-archivo');
+        if(txt) txt.innerText = "CARGAR IMAGEN DEL PLANO";
+
+        cargarPlanosEdicionGeneral();
+        sincronizarColas();
     };
     reader.readAsDataURL(file);
+}
+
+function eliminarPlanoGeneral(a, i) {
+    if(confirm("¿Borrar plano permanentemente?")) {
+        let colaDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+        colaDel.push({ area: a, id: i });
+        localStorage.setItem('cola_planos_del', JSON.stringify(colaDel));
+
+        let colaEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+        colaEnv = colaEnv.filter(item => item.id !== i);
+        localStorage.setItem('cola_planos_envios', JSON.stringify(colaEnv));
+
+        notificar("BORRADO PENDIENTE");
+        cargarPlanosEdicionGeneral();
+        sincronizarColas();
+    }
 }
 
 function cargarManualParaEditar() {
@@ -430,26 +548,62 @@ function guardarManualArea() {
 
 function cargarDocsEdicion() {
     const area = document.getElementById('input-doc-area').value;
-    const cache = JSON.parse(localStorage.getItem('cache_docs_'+area) || "{}");
-    const render = (datos) => {
+    const render = () => {
+        const cache = JSON.parse(localStorage.getItem('cache_docs_'+area) || "{}");
+        let combinados = {...cache};
+        let colaEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+        colaEnv.filter(q => q.area === area).forEach(q => { combinados[q.id] = q.data; });
+        let colaDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+        colaDel.filter(q => q.area === area).forEach(q => { delete combinados[q.id]; });
+
         const lista = document.getElementById('lista-docs-edicion'); if(!lista) return; lista.innerHTML = "";
-        Object.keys(datos).forEach(id => { lista.innerHTML += `<div class="user-item-modern"><span>${datos[id].titulo}</span><button onclick="eliminarDocumento('${area}', '${id}')" style="color:red;">X</button></div>`; });
+        Object.keys(combinados).forEach(id => {
+            const isPending = colaEnv.some(q => q.id === id);
+            lista.innerHTML += `
+                <div class="user-item-modern">
+                    <div>
+                        <span>${combinados[id].titulo}</span>
+                        ${isPending ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE)</small>' : ''}
+                    </div>
+                    <button onclick="eliminarDocumento('${area}', '${id}')" style="color:red;">X</button>
+                </div>`;
+        });
     };
-    render(cache);
-    if(database && navigator.onLine) database.ref('documentos/'+area).once('value').then(s => { render(s.val() || {}); });
+    render();
+    if(database) {
+        database.ref('documentos/'+area).off();
+        database.ref('documentos/'+area).on('value', s => {
+            localStorage.setItem('cache_docs_' + area, JSON.stringify(s.val() || {}));
+            render();
+        });
+    }
 }
 
 function guardarDocumento() {
     const area = document.getElementById('input-doc-area').value;
     const tit = document.getElementById('input-doc-titulo').value.trim();
-    const file = document.getElementById('input-doc-archivo').files[0];
-    if(!tit || !file) return;
+    const fileInput = document.getElementById('input-doc-archivo');
+    const file = fileInput.files[0];
+    if(!tit || !file) { notificar("TÍTULO Y ARCHIVO REQUERIDOS", "error"); return; }
+
     const reader = new FileReader();
     reader.onload = (e) => {
-        const id = Date.now(); const ext = file.name.split('.').pop();
+        const id = "doc_" + Date.now();
+        const ext = file.name.split('.').pop();
         const data = { titulo: tit, archivo: e.target.result, extension: ext };
-        if(database) database.ref('documentos/'+area+'/'+id).set(data);
-        notificar("DOCUMENTO GUARDADO"); cargarDocsEdicion();
+
+        let cola = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+        cola.push({ area, id, data });
+        localStorage.setItem('cola_docs_envios', JSON.stringify(cola));
+
+        notificar("DOCUMENTO EN COLA DE SUBIDA");
+        document.getElementById('input-doc-titulo').value = "";
+        fileInput.value = "";
+        const txt = document.getElementById('txt-doc-nombre');
+        if(txt) txt.innerText = "SELECCIONAR EXCEL, WORD O PDF";
+
+        cargarDocsEdicion();
+        sincronizarColas();
     };
     reader.readAsDataURL(file);
 }
@@ -669,11 +823,13 @@ document.addEventListener('DOMContentLoaded', () => {
         fotoInput.addEventListener('change', e => {
             const files = e.target.files;
             if(files.length + fotosBase64.length > 2) { notificar("MÁXIMO 2 FOTOS", "error"); return; }
-            const txt = document.getElementById('nombre-archivo-seleccionado');
-            if(txt) txt.innerText = (files.length + fotosBase64.length) + " FOTO(S) SELECCIONADA(S)";
+
             Array.from(files).forEach(f => {
                 const r = new FileReader();
-                r.onload = ev => { fotosBase64.push(ev.target.result); actualizarPreviewsFotos(); };
+                r.onload = ev => {
+                    fotosBase64.push(ev.target.result);
+                    actualizarPreviewsFotos();
+                };
                 r.readAsDataURL(f);
             });
         });
@@ -715,7 +871,21 @@ function eliminarEquipo(a, t) {
     }
 }
 function eliminarPlanoGeneral(a, i) { if(confirm("¿Borrar plano?")) { if(database) database.ref('planos/'+a+'/'+i).remove(); cargarPlanosEdicionGeneral(); } }
-function eliminarDocumento(a, i) { if(confirm("¿Borrar documento?")) { if(database) database.ref('documentos/'+a+'/'+i).remove(); cargarDocsEdicion(); } }
+function eliminarDocumento(a, i) {
+    if(confirm("¿Borrar documento?")) {
+        let colaDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+        colaDel.push({ area: a, id: i });
+        localStorage.setItem('cola_docs_del', JSON.stringify(colaDel));
+
+        let colaEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+        colaEnv = colaEnv.filter(item => item.id !== i);
+        localStorage.setItem('cola_docs_envios', JSON.stringify(colaEnv));
+
+        notificar("BORRADO PENDIENTE");
+        cargarDocsEdicion();
+        sincronizarColas();
+    }
+}
 function solicitarEliminarU(u) { if(confirm("¿Borrar editor "+u+"?")) { if(database) database.ref('usuarios/'+u).remove(); } }
 function cargarParaEditar(j, area) {
     const eq = JSON.parse(decodeURIComponent(j));
@@ -730,6 +900,29 @@ function cargarParaEditar(j, area) {
     actualizarPreviewsFotos();
     window.scrollTo({top:0, behavior:'smooth'});
 }
-function actualizarPreviewsFotos() { const c = document.getElementById('preview-container'); if(c) { c.innerHTML = ""; fotosBase64.forEach(d => c.innerHTML += `<img src="${d}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:2px solid #ffcc00;">`); } }
+function actualizarPreviewsFotos() {
+    const c = document.getElementById('preview-container');
+    const txt = document.getElementById('nombre-archivo-seleccionado');
+    if(c) {
+        c.innerHTML = "";
+        fotosBase64.forEach((d, i) => {
+            c.innerHTML += `
+                <div style="position:relative; width:80px; height:80px;">
+                    <img src="${d}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; border:2px solid #ffcc00;">
+                    <button onclick="eliminarFotoDePrevio(${i})" style="position:absolute; top:-8px; right:-8px; background:#ff4444; color:white; border:none; border-radius:50%; width:22px; height:22px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index:10;">×</button>
+                </div>`;
+        });
+    }
+    if(txt) {
+        if(fotosBase64.length > 0) txt.innerText = fotosBase64.length + " FOTO(S) SELECCIONADA(S)";
+        else txt.innerText = "SELECCIONAR DE GALERÍA";
+    }
+}
+
+function eliminarFotoDePrevio(index) {
+    fotosBase64.splice(index, 1);
+    actualizarPreviewsFotos();
+    notificar("FOTO REMOVIDA", "info");
+}
 function verImagenFull(src, tit) { const m = document.getElementById('modal-info'); const i = document.getElementById('info-tecnica'); if(m && i) { i.innerHTML = `<h2 style="color:#ffcc00;">${tit}</h2><img src="${src}" style="width:100%; border:1px solid #333;">`; m.style.display='flex'; } }
 function cargarPlanosVista() { /* No longer needed */ }
