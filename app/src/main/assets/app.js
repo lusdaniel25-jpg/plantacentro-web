@@ -65,6 +65,7 @@ function sincronizarColas() {
             actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_envios', JSON.stringify(actual));
             notificar("SINCRONIZADO: " + q.tag);
+            if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
         });
     });
     colaDel.forEach(q => {
@@ -72,6 +73,7 @@ function sincronizarColas() {
             let actual = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
             actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_eliminaciones', JSON.stringify(actual));
+            if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
         });
     });
 
@@ -82,6 +84,7 @@ function sincronizarColas() {
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_envios', JSON.stringify(actual));
             notificar("PLANO SINCRONIZADO: " + q.data.titulo);
+            if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
         });
     });
     colaPlDel.forEach(q => {
@@ -89,6 +92,7 @@ function sincronizarColas() {
             let actual = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_del', JSON.stringify(actual));
+            if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
         });
     });
 
@@ -99,6 +103,7 @@ function sincronizarColas() {
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_envios', JSON.stringify(actual));
             notificar("DOC SINCRONIZADO: " + q.data.titulo);
+            if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
         });
     });
     colaDocDel.forEach(q => {
@@ -106,6 +111,7 @@ function sincronizarColas() {
             let actual = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_del', JSON.stringify(actual));
+            if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
         });
     });
 }
@@ -410,7 +416,7 @@ function cargarEquiposEdicion() {
                             <b style="color: #ffcc00; font-size: 0.85rem;">${eq.nombre}</b><br>
                             <small style="color: #aaa; font-family: monospace; font-size: 0.7rem;">[ ${eq.tag} ]</small>
                             ${eq.editado_por ? `<br><small style="color:#00ccff; font-size:0.6rem;"><i class="fas fa-user"></i> ${eq.editado_por.toUpperCase()}</small> <small style="color:#666; font-size:0.6rem;">(${eq.fecha_edicion})</small>` : ''}
-                            ${colaEnv.some(q=>q.tag===eq.tag && q.area===area) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
+                            ${(!navigator.onLine && colaEnv.some(q=>q.tag===eq.tag && q.area===area)) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px;">
@@ -441,6 +447,38 @@ function procesarCarga() {
 
     if (!tag || !nombre) { notificar("TAG Y NOMBRE REQUERIDOS", "error"); return; }
 
+    // VALIDACIÓN DE DUPLICADOS GLOBAL (En todas las áreas)
+    const areas = ["auxiliares", "turbina", "ciclo", "caldera", "calderas_auxiliares", "externas", "instrumentacion", "contra_incendio"];
+    const colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
+
+    let duplicadoEnArea = null;
+
+    // Buscar en los caches de todas las áreas y en la cola global
+    for (const a of areas) {
+        const cacheArea = JSON.parse(localStorage.getItem('cache_' + a) || "{}");
+
+        // Verificar TAG
+        const existeTag = cacheArea[tag] || colaEnv.find(e => e.tag === tag && e.area === a);
+        if (existeTag && (!tagOriginalEdicion || tag !== tagOriginalEdicion || a !== areaOriginalEdicion)) {
+            duplicadoEnArea = a;
+            break;
+        }
+
+        // Verificar Nombre
+        const existeNom = Object.values(cacheArea).find(e => e.nombre.toLowerCase() === nombre.toLowerCase()) ||
+                          colaEnv.find(e => e.nombre.toLowerCase() === nombre.toLowerCase() && e.area === a);
+        if (existeNom && (!tagOriginalEdicion || tagOriginalEdicion !== (existeNom.tag || tag) || a !== areaOriginalEdicion)) {
+            // Nota: Si estamos editando y el nombre coincide con otro equipo distinto al original
+            duplicadoEnArea = a;
+            break;
+        }
+    }
+
+    if (duplicadoEnArea) {
+        notificar(`ERROR: EL EQUIPO YA EXISTE EN EL ÁREA: ${duplicadoEnArea.toUpperCase()}`, "error");
+        return;
+    }
+
     const autor = localStorage.getItem('user_name') || 'Desconocido';
     const fecha = new Date().toLocaleString();
 
@@ -451,10 +489,10 @@ function procesarCarga() {
         fecha_edicion: fecha
     };
 
-    let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
-    colaEnv = colaEnv.filter(i => !(i.tag === tag && i.area === area));
-    colaEnv.push(equipo);
-    localStorage.setItem('cola_envios', JSON.stringify(colaEnv));
+    let colaActualizada = JSON.parse(localStorage.getItem('cola_envios') || "[]");
+    colaActualizada = colaActualizada.filter(i => !(i.tag === tag && i.area === area));
+    colaActualizada.push(equipo);
+    localStorage.setItem('cola_envios', JSON.stringify(colaActualizada));
 
     if (tagOriginalEdicion && (areaOriginalEdicion !== area || tagOriginalEdicion !== tag)) {
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
@@ -507,6 +545,14 @@ function guardarPlanoGeneral() {
     const fileInput = document.getElementById('input-plano-foto-general');
     const file = fileInput.files[0];
     if(!tit || !file) { notificar("TÍTULO E IMAGEN REQUERIDOS", "error"); return; }
+
+    // VALIDACIÓN DE DUPLICADOS EN PLANOS
+    const cachePl = JSON.parse(localStorage.getItem('cache_planos_' + area) || "{}");
+    const colaPl = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+    const existePl = Object.values(cachePl).find(p => p.titulo.toLowerCase() === tit.toLowerCase()) ||
+                    colaPl.find(p => p.area === area && p.data.titulo.toLowerCase() === tit.toLowerCase());
+
+    if (existePl) { notificar("YA EXISTE UN PLANO CON ESE TÍTULO EN ESTA ÁREA", "error"); return; }
 
     const reader = new FileReader();
     reader.onload = (e) => {
