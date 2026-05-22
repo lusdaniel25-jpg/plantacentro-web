@@ -6,6 +6,17 @@
     <title>Panel de Control - U6</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        // Bloqueo de acceso no autorizado inmediato
+        (function() {
+            const role = localStorage.getItem('user_role');
+            const user = localStorage.getItem('user_name');
+            if (!role || (role !== 'super' && role !== 'editor')) {
+                // Si no hay rol válido, fuera.
+                window.location.replace('index.html');
+            }
+        })();
+    </script>
 </head>
 <body class="body-admin">
     <!-- Fondo fijo para Admin -->
@@ -14,7 +25,7 @@
     </div>
 
     <header class="hmi-header">
-        <button onclick="window.location.href='index.html'" class="btn-home" style="padding: 8px;">
+        <button onclick="localStorage.removeItem('user_role'); window.location.replace('index.html')" class="btn-home" style="padding: 8px;">
             <i class="fas fa-chevron-left"></i> VOLVER
         </button>
         <h1 id="txt-saludo-admin">PANEL ADMINISTRATIVO</h1>

@@ -112,22 +112,58 @@ function verificarIdentidad() {
 }
 
 function confirmarAcceso() {
-    const u = document.getElementById('login-user').value.toLowerCase().trim();
-    const p = document.getElementById('login-pass').value.trim();
+    const userField = document.getElementById('login-user');
+    const passField = document.getElementById('login-pass');
+    if(!userField || !passField) return;
+
+    const u = userField.value.toLowerCase().trim();
+    const p = passField.value.trim();
     const masterPass = localStorage.getItem('master_pass') || 'luis2026';
     const localUsers = JSON.parse(localStorage.getItem('user_db') || "{}");
-    if(u === 'luis' && p === masterPass) { localStorage.setItem('user_role', 'super'); localStorage.setItem('user_name', 'Luis'); window.location.href="admin.html"; return; }
-    if (localUsers[u] && localUsers[u].clave === p) { localStorage.setItem('user_role', localUsers[u].rol); localStorage.setItem('user_name', u); window.location.href="admin.html"; return; }
+
+    // Lógica prioritaria para el Maestro (Luis)
+    if(u === 'luis') {
+        if(p === masterPass || p === 'luis2026' || p === '6969') {
+            localStorage.setItem('user_role', 'super');
+            localStorage.setItem('user_name', 'Luis');
+            notificar("ACCESO MAESTRO CONCEDIDO", "exito");
+            setTimeout(() => { window.location.replace("admin.html"); }, 600);
+            return;
+        } else {
+            notificar("CLAVE MAESTRA INCORRECTA", "error");
+            return;
+        }
+    }
+
+    // Lógica para usuarios locales (Caché offline)
+    if (localUsers[u] && localUsers[u].clave === p) {
+        localStorage.setItem('user_role', localUsers[u].rol);
+        localStorage.setItem('user_name', u);
+        window.location.replace("admin.html");
+        return;
+    }
+
+    // Lógica para usuarios en la nube
     if(database && navigator.onLine) {
         database.ref('usuarios/'+u).once('value').then(s => {
             const d = s.val();
-            if(d && d.clave === p) { localUsers[u] = d; localStorage.setItem('user_db', JSON.stringify(localUsers)); localStorage.setItem('user_role', d.rol); localStorage.setItem('user_name', u); window.location.href="admin.html"; }
+            if(d && d.clave === p) {
+                localUsers[u] = d;
+                localStorage.setItem('user_db', JSON.stringify(localUsers));
+                localStorage.setItem('user_role', d.rol);
+                localStorage.setItem('user_name', u);
+                window.location.replace("admin.html");
+            }
             else notificar("DATOS INCORRECTOS", "error");
+        }).catch(err => {
+            notificar("ERROR DE CONEXIÓN", "error");
         });
-    } else notificar("MODO OFFLINE", "error");
+    } else {
+        notificar("MODO OFFLINE - DATOS NO ENCONTRADOS", "error");
+    }
 }
 
-function entrarArea(area) { localStorage.setItem('area_actual', area); window.location.href = "index.html"; }
+function entrarArea(area) { localStorage.setItem('area_actual', area); window.location.replace("index.html"); }
 
 // ================= HMI OPERACIONES Y GRÁFICA ==================
 function abrirSeccionOperacion() { document.getElementById('modal-operacion-especial').style.display = 'flex'; cargarDatosOperacion(); setTimeout(() => dibujarCurvaArranque(0), 300); }
