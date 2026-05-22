@@ -32,7 +32,18 @@ function conectarFirebase() {
         if (!listenerConexionActivo) {
             database.ref('.info/connected').on('value', (snap) => {
                 if (snap.val() === true) {
-                    notificar("SISTEMA CONECTADO", "exito");
+                    const role = localStorage.getItem('user_role') || 'LECTURA';
+                    const user = localStorage.getItem('user_name') || 'Invitado';
+                    notificar(`CONECTADO [MODO: ${role.toUpperCase()}]`, "exito");
+
+                    // RASTREO DE PRESENCIA CON ÚLTIMA CONEXIÓN (MAESTROS Y ESTÁNDAR)
+                    if (user !== 'Invitado') {
+                        const idRastreo = localStorage.getItem('user_id_std') || user.toLowerCase();
+                        const presenceRef = database.ref('presencia/' + idRastreo);
+                        presenceRef.set({ estado: 'online', ultima: Date.now() });
+                        presenceRef.onDisconnect().set({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
+                    }
+
                     verificarActualizaciones();
                     sincronizarColas();
 
@@ -133,20 +144,39 @@ function verificarIdentidad() {
     if (!id) return;
     const masterPass = localStorage.getItem('master_pass') || 'luis2026';
     const localUsers = JSON.parse(localStorage.getItem('user_db') || "{}");
-    if (id.toLowerCase() === 'luis' || id === masterPass || id === "6969") { entrarArea(areaSeleccionadaPaso); return; }
+
+    // Casos especiales (Maestro o Usuarios Locales)
+    if (id.toLowerCase() === 'luis' || id === masterPass || id === "6969") {
+        localStorage.setItem('user_name', 'Luis');
+        entrarArea(areaSeleccionadaPaso);
+        return;
+    }
+
     let esAdminLocal = false;
     Object.keys(localUsers).forEach(u => { if (id.toLowerCase() === u || id === localUsers[u].clave) esAdminLocal = true; });
-    if (esAdminLocal) { entrarArea(areaSeleccionadaPaso); return; }
+    if (esAdminLocal) {
+        localStorage.setItem('user_name', id);
+        entrarArea(areaSeleccionadaPaso);
+        return;
+    }
+
     if (database && navigator.onLine) {
         database.ref('personal_autorizado/' + id).once('value').then(s => {
             const u = s.val();
-            if (u && u.estado === 'activo') { entrarArea(areaSeleccionadaPaso); return; }
+            if (u && u.estado === 'activo') {
+                localStorage.setItem('user_name', u.nombre);
+                localStorage.setItem('user_id_std', id); // Guardar ID para rastreo
+                entrarArea(areaSeleccionadaPaso);
+                return;
+            }
             database.ref('usuarios').once('value').then(snap => {
                 const users = snap.val() || {};
                 let esAdminNube = false;
                 Object.keys(users).forEach(uname => { if (id.toLowerCase() === uname || id === users[uname].clave) esAdminNube = true; });
-                if (esAdminNube) entrarArea(areaSeleccionadaPaso);
-                else {
+                if (esAdminNube) {
+                    localStorage.setItem('user_name', id);
+                    entrarArea(areaSeleccionadaPaso);
+                } else {
                     const msg = document.getElementById('msg-error-id');
                     if(msg) { msg.innerText = (u && u.estado === 'pendiente') ? "ESPERA APROBACIÓN" : "ID NO REGISTRADO"; msg.style.display = 'block'; }
                 }
@@ -678,42 +708,68 @@ function guardarDocumento() {
 
 function cargarListaUsuarios() {
     const l = document.getElementById('lista-usuarios'); if(!l) return;
-    database.ref('usuarios').on('value', s => {
-        const us = s.val() || {};
-        l.innerHTML = "";
 
-        // Asegurar que el Root (Luis) aparezca siempre para ser gestionado
-        if(!us['luis']) {
-            us['luis'] = { nombre: 'luis', clave: localStorage.getItem('master_pass') || 'luis2026', rol: 'super' };
-        }
+    // Escuchar cambios en usuarios y presencia simultáneamente
+    database.ref('usuarios').on('value', s_us => {
+        database.ref('presencia').on('value', s_pr => {
+            const us = s_us.val() || {};
+            const pr = s_pr.val() || {};
+            l.innerHTML = "";
 
-        const maestros = Object.keys(us).filter(u => us[u].rol === 'super');
-        const editores = Object.keys(us).filter(u => us[u].rol !== 'super');
+            if(!us['luis']) {
+                us['luis'] = { nombre: 'luis', clave: localStorage.getItem('master_pass') || 'luis2026', rol: 'super' };
+            }
 
-        if(maestros.length > 0) {
-            l.innerHTML += "<h4 style='color:#ff4444; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-crown'></i> MAESTROS (ACCESO TOTAL):</h4>";
-            maestros.forEach(u => l.innerHTML += generarItemUsuario(u, us[u]));
-        }
+            const maestros = Object.keys(us).filter(u => us[u].rol === 'super');
+            const editores = Object.keys(us).filter(u => us[u].rol !== 'super');
 
-        if(editores.length > 0) {
-            l.innerHTML += "<h4 style='color:#2ecc71; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-user-edit'></i> EDITORES TÉCNICOS:</h4>";
-            editores.forEach(u => l.innerHTML += generarItemUsuario(u, us[u]));
-        }
+            if(maestros.length > 0) {
+                l.innerHTML += "<h4 style='color:#ff4444; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-crown'></i> MAESTROS (ACCESO TOTAL):</h4>";
+                maestros.forEach(u => l.innerHTML += generarItemUsuario(u, us[u], pr[u.toLowerCase()]));
+            }
+
+            if(editores.length > 0) {
+                l.innerHTML += "<h4 style='color:#2ecc71; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-user-edit'></i> EDITORES TÉCNICOS:</h4>";
+                editores.forEach(u => l.innerHTML += generarItemUsuario(u, us[u], pr[u.toLowerCase()]));
+            }
+        });
     });
 }
 
-function generarItemUsuario(u, data) {
+function generarItemUsuario(u, data, presenceObj) {
     const esMaestro = data.rol === 'super';
     const colorBorde = esMaestro ? '#ff4444' : '#2ecc71';
     const colorFondo = esMaestro ? 'rgba(255,68,68,0.05)' : 'rgba(46,204,113,0.05)';
     const etiqueta = esMaestro ? 'MAESTRO / ADMINISTRADOR' : 'EDITOR TÉCNICO';
     const esRoot = u === 'luis';
 
+    const estado = presenceObj ? presenceObj.estado : 'offline';
+    const ultima = presenceObj ? presenceObj.ultima : null;
+
+    // Clase del punto según estado
+    const statusClass = estado === 'online' ? 'status-online' : 'status-offline';
+
+    let infoConexion = "";
+    if (estado === 'online') {
+        infoConexion = '<small style="color:#2ecc71; font-weight:bold;">EN LÍNEA AHORA</small>';
+    } else if (ultima) {
+        const d = new Date(ultima);
+        const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = d.toLocaleDateString();
+        infoConexion = `<small style="color:#666;">Última vez: ${dateStr} ${timeStr}</small>`;
+    } else {
+        infoConexion = '<small style="color:#666;">Sin registro de actividad</small>';
+    }
+
     return `
     <div class="user-item-modern" style="border-left:4px solid ${colorBorde}; background:${colorFondo}; display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
-        <div style="text-align:left;">
-            <b style="color:#fff; font-size:0.85rem;">${u.toUpperCase()} ${esRoot ? '<small style="color:#ffcc00">(ROOT)</small>' : ''}</b><br>
-            <small style="color:${colorBorde}; font-size:0.65rem;">${etiqueta}</small>
+        <div style="text-align:left; display: flex; align-items: center; gap: 10px;">
+            <div class="status-dot ${statusClass}"></div>
+            <div>
+                <b style="color:#fff; font-size:0.85rem;">${u.toUpperCase()} ${esRoot ? '<small style="color:#ffcc00">(ROOT)</small>' : ''}</b><br>
+                ${infoConexion}<br>
+                <small style="color:${colorBorde}; font-size:0.65rem;">${etiqueta}</small>
+            </div>
         </div>
         <div style="display:flex; gap:10px;">
             <button onclick="prepararEdicionEditor('${u}', '${data.clave}', '${data.rol}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
@@ -772,27 +828,49 @@ function crearNuevoEditor() {
 
 function cargarListaPersonalAutorizado() {
     const c = document.getElementById('lista-personal-completa'); if(!c) return;
-    database.ref('personal_autorizado').on('value', s => {
-        const data = s.val() || {};
-        c.innerHTML = "<h4 style='color:#ffcc00; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'>PERSONAL CON ACCESO (LECTURA):</h4>";
-        let hayActivos = false;
-        Object.keys(data).forEach(id => {
-            if(data[id].estado === 'activo') {
-                hayActivos = true;
-                c.innerHTML += `
-                <div class="user-item-modern" style="border-left:4px solid #2ecc71; background:rgba(46,204,113,0.05); display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
-                    <div style="text-align:left;">
-                        <b style="color:#fff; font-size:0.85rem;">${data[id].nombre}</b><br>
-                        <small style="color:#aaa; font-family:monospace; font-size:0.7rem;">CÉDULA: ${id}</small>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <button onclick="prepararEdicionAutorizado('${id}', '${data[id].nombre}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
-                        <button onclick="eliminarAutorizado('${id}')" style="background:rgba(255,68,68,0.1); border:1px solid #ff4444; color:#ff4444; padding:5px 8px; border-radius:6px;"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                </div>`;
-            }
+
+    database.ref('personal_autorizado').on('value', s_pa => {
+        database.ref('presencia').on('value', s_pr => {
+            const data = s_pa.val() || {};
+            const pr = s_pr.val() || {};
+            c.innerHTML = "<h4 style='color:#ffcc00; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'>PERSONAL CON ACCESO (LECTURA):</h4>";
+            let hayActivos = false;
+
+            Object.keys(data).forEach(id => {
+                if(data[id].estado === 'activo') {
+                    hayActivos = true;
+                    const pres = pr[id] || { estado: 'offline', ultima: null };
+                    const statusClass = pres.estado === 'online' ? 'status-online' : 'status-offline';
+
+                    let infoConexion = "";
+                    if (pres.estado === 'online') {
+                        infoConexion = '<small style="color:#2ecc71; font-weight:bold;">EN LÍNEA</small>';
+                    } else if (pres.ultima) {
+                        const d = new Date(pres.ultima);
+                        infoConexion = `<small style="color:#666;">Visto: ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</small>`;
+                    } else {
+                        infoConexion = '<small style="color:#666;">Sin registro</small>';
+                    }
+
+                    c.innerHTML += `
+                    <div class="user-item-modern" style="border-left:4px solid #2ecc71; background:rgba(46,204,113,0.05); display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px; border-radius:12px;">
+                        <div style="text-align:left; display: flex; align-items: center; gap: 10px;">
+                            <div class="status-dot ${statusClass}"></div>
+                            <div>
+                                <b style="color:#fff; font-size:0.85rem;">${data[id].nombre}</b><br>
+                                ${infoConexion}<br>
+                                <small style="color:#aaa; font-family:monospace; font-size:0.7rem;">CÉDULA: ${id}</small>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button onclick="prepararEdicionAutorizado('${id}', '${data[id].nombre}')" style="background:rgba(0,204,255,0.1); border:1px solid #00ccff; color:#00ccff; padding:5px 8px; border-radius:6px;"><i class="fas fa-edit"></i></button>
+                            <button onclick="eliminarAutorizado('${id}')" style="background:rgba(255,68,68,0.1); border:1px solid #ff4444; color:#ff4444; padding:5px 8px; border-radius:6px;"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </div>`;
+                }
+            });
+            if(!hayActivos) c.innerHTML += "<p style='color:#666; font-size:0.7rem; text-align:center;'>No hay personal registrado.</p>";
         });
-        if(!hayActivos) c.innerHTML += "<p style='color:#666; font-size:0.7rem; text-align:center;'>No hay personal registrado.</p>";
     });
 }
 
