@@ -1276,4 +1276,31 @@ function eliminarFotoDePrevio(index) {
     notificar("FOTO REMOVIDA", "info");
 }
 function verImagenFull(src, tit) { const m = document.getElementById('modal-info'); const i = document.getElementById('info-tecnica'); if(m && i) { i.innerHTML = `<h2 style="color:#ffcc00;">${tit}</h2><img src="${src}" style="width:100%; border:1px solid #333;">`; m.style.display='flex'; } }
+
+// ================= GESTIÓN DE SOLICITUDES (BIENVENIDA) ==================
+function mostrarFormSolicitud() {
+    const w1 = document.getElementById('wrapper-verificar-id');
+    const w2 = document.getElementById('wrapper-solicitar-acceso');
+    if(w1) w1.style.display = 'none';
+    if(w2) w2.style.display = 'block';
+}
+
+function enviarSolicitudAcceso() {
+    const nom = document.getElementById('input-nombre-solicitud').value.trim();
+    const id = document.getElementById('input-id-solicitud').value.trim();
+    if (!nom || !id) { notificar("COMPLETE LOS CAMPOS", "error"); return; }
+
+    if (database) {
+        database.ref('personal_autorizado/' + id).set({
+            nombre: nom,
+            estado: 'pendiente',
+            fecha: new Date().toLocaleString()
+        }).then(() => {
+            notificar("SOLICITUD ENVIADA A LUIS", "exito");
+            volverAVerificar();
+        });
+    } else {
+        notificar("ERROR: SIN CONEXIÓN", "error");
+    }
+}
 function cargarPlanosVista() { /* No longer needed */ }
