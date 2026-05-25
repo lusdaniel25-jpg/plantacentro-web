@@ -10,7 +10,7 @@ if (typeof Android === "undefined") {
             if(navigator.share) {
                 navigator.share({ title: 'Planta Centro U6', text: text });
             } else {
-                alert("Enlace copiado: " + text);
+                notificar("ENLACE COPIADO: " + text, "info");
             }
         },
         downloadUpdate: function(url) { window.open(url, '_blank'); },
@@ -77,28 +77,24 @@ function conectarFirebase() {
                         const role = sessionStorage.getItem('user_role');
                         let idRastreo = "";
 
-                        // Si es Lector, usamos su Cédula. Si es Admin/Editor, usamos su nombre de usuario.
                         if (role === 'super' || role === 'editor') {
                             idRastreo = user.toLowerCase().trim();
                         } else {
-                            // Si no hay rol, comprobamos si tiene un ID de lector guardado
                             const savedId = localStorage.getItem('user_id_std');
                             idRastreo = (savedId || user).toLowerCase().trim();
                         }
 
+                        // Sanitizar ID para Firebase (Evitar caracteres prohibidos: . $ # [ ] /)
+                        idRastreo = idRastreo.replace(/[\.\$#\[\]\/]/g, "_");
+
                         if (idRastreo) {
                             const presenceRef = database.ref('presencia/' + idRastreo);
-
-                            // Limpiar cualquier onDisconnect previo para evitar duplicados
                             presenceRef.onDisconnect().cancel();
-
-                            // Establecer estado ONLINE con marca de tiempo actual del servidor
                             presenceRef.update({
                                 estado: 'online',
                                 ultima: firebase.database.ServerValue.TIMESTAMP
-                            });
+                            }).catch(e => console.error("Error presencia:", e));
 
-                            // Programar estado OFFLINE cuando se pierda la conexión
                             presenceRef.onDisconnect().update({
                                 estado: 'offline',
                                 ultima: firebase.database.ServerValue.TIMESTAMP
@@ -136,89 +132,81 @@ function conectarFirebase() {
 }
 
 function sincronizarColas() {
-    if (!database) return;
-
-    // Dejamos que Firebase maneje su propia cola interna si no hay conexión inmediata
-    // pero intentamos disparar el proceso siempre que la base de datos esté inicializada.
+    if (!database || !navigator.onLine) return;
 
     let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
 
-    // 1. PRIMERO PROCESAR ELIMINACIONES
+    // 1. PROCESAR ELIMINACIONES
     colaDel.forEach(q => {
-        database.ref('equipos/' + q.area + '/' + q.tag).remove().then(() => {
-            // Limpiar de cola de eliminaciones
+        const sTag = q.tag.replace(/[\.\$#\[\]\/]/g, "_");
+        database.ref('equipos/' + q.area + '/' + sTag).remove().then(() => {
             let actualDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
             actualDel = actualDel.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_eliminaciones', JSON.stringify(actualDel));
-
-            // IMPORTANTE: Si estaba en cola de envíos (por un cambio de tag), también limpiarlo
-            let actualEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
-            actualEnv = actualEnv.filter(i => !(i.tag === q.tag && i.area === q.area));
-            localStorage.setItem('cola_envios', JSON.stringify(actualEnv));
-
             if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
-            registrarLog("ELIMINÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
-        });
+        }).catch(e => console.error("Error sync delete:", e));
     });
 
-    // 2. LUEGO PROCESAR ENVÍOS
+    // 2. PROCESAR ENVÍOS
     colaEnv.forEach(q => {
-        database.ref('equipos/' + q.area + '/' + q.tag).set(q).then(() => {
+        const sTag = q.tag.replace(/[\.\$#\[\]\/]/g, "_");
+        database.ref('equipos/' + q.area + '/' + sTag).set(q).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_envios') || "[]");
             actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_envios', JSON.stringify(actual));
-            notificar("REGISTRO EXITOSO: " + q.tag);
+            notificar("REGISTRO SINCRONIZADO: " + q.tag);
             if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
-            registrarLog("CARGÓ/EDITÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
+            registrarLog("SINCRONIZÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
+        }).catch(e => {
+            console.error("Error sync upload:", e);
+            if(e.message && e.message.includes("large")) notificar("ERROR: IMAGEN MUY GRANDE PARA LA NUBE", "error");
+            else notificar("ERROR AL SINCRONIZAR " + q.tag, "error");
         });
     });
 
-    // Sincronizar Planos y Documentos (Mantenemos el orden estándar)
+    // Sincronizar Planos
     let colaPlEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
     let colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
-    let colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
-    let colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
 
     colaPlEnv.forEach(q => {
         database.ref('planos/' + q.area + '/' + q.id).set(q.data).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_envios', JSON.stringify(actual));
-            notificar("PLANO SINCRONIZADO: " + q.data.titulo);
             if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
-            registrarLog("SUBIÓ PLANO: " + q.data.titulo + " (" + q.area.toUpperCase() + ")");
-        });
+        }).catch(e => console.error("Error sync plano:", e));
     });
+
     colaPlDel.forEach(q => {
         database.ref('planos/' + q.area + '/' + q.id).remove().then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_del', JSON.stringify(actual));
             if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
-            registrarLog("ELIMINÓ PLANO EN: " + q.area.toUpperCase());
-        });
+        }).catch(e => console.error("Error sync del plano:", e));
     });
 
     // Sincronizar Documentos
+    let colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+    let colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+
     colaDocEnv.forEach(q => {
         database.ref('documentos/' + q.area + '/' + q.id).set(q.data).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_envios', JSON.stringify(actual));
-            notificar("DOC SINCRONIZADO: " + q.data.titulo);
             if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
-            registrarLog("SUBIÓ DOCUMENTO: " + q.data.titulo + " (" + q.area.toUpperCase() + ")");
-        });
+        }).catch(e => console.error("Error sync doc:", e));
     });
+
     colaDocDel.forEach(q => {
         database.ref('documentos/' + q.area + '/' + q.id).remove().then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_del', JSON.stringify(actual));
             if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
-            registrarLog("ELIMINÓ DOCUMENTO EN: " + q.area.toUpperCase());
-        });
+        }).catch(e => console.error("Error sync del doc:", e));
     });
 }
 
@@ -454,19 +442,22 @@ function filtrarSistema(sistema) {
     const btnHome = document.querySelector('.btn-home');
     if (btnHome) { btnHome.innerHTML = '<i class="fas fa-chevron-left"></i> VOLVER'; btnHome.onclick = () => { window.location.reload(); }; }
     const busc = document.getElementById('contenedor-buscador'); if(busc) busc.style.display = 'block';
+
     cargarPlanosDelArea(sistema); cargarManualDelArea(sistema); cargarDocsDelArea(sistema);
-    const renderLocal = () => {
-        const cacheRaw = localStorage.getItem('cache_' + sistema);
-        let cache = {};
-        try {
-            cache = JSON.parse(cacheRaw || "{}");
-        } catch(e) { cache = {}; }
+
+    const renderLocal = (liveData = null) => {
+        let val;
+        if (liveData) {
+            val = liveData;
+        } else {
+            const cacheRaw = localStorage.getItem('cache_' + sistema);
+            try { val = JSON.parse(cacheRaw || "{}"); } catch(e) { val = {}; }
+        }
 
         let combinados = {};
-        // Normalizar cache: usar Tag en MAYÚSCULAS como llave única para evitar duplicados por minúsculas
-        if (cache && typeof cache === 'object') {
-            Object.keys(cache).forEach(k => {
-                const item = cache[k];
+        if (val && typeof val === 'object') {
+            Object.keys(val).forEach(k => {
+                const item = val[k];
                 if (item) {
                     const tagKey = (item.tag || k).toString().toUpperCase().trim();
                     combinados[tagKey] = { ...item, tag: tagKey };
@@ -496,12 +487,16 @@ function filtrarSistema(sistema) {
         equiposActuales = Array.from(finalMap.values());
         dibujarEquipos(equiposActuales);
     };
+
     renderLocal();
-    if (database) database.ref('equipos/' + sistema).on('value', (s) => {
-        const val = s.val();
-        localStorage.setItem('cache_' + sistema, JSON.stringify(val || {}));
-        renderLocal();
-    });
+    if (database) {
+        database.ref('equipos/' + sistema).off();
+        database.ref('equipos/' + sistema).on('value', (s) => {
+            const data = s.val();
+            try { localStorage.setItem('cache_' + sistema, JSON.stringify(data || {})); } catch(e) {}
+            renderLocal(data);
+        });
+    }
 }
 
 function dibujarEquipos(equipos) {
@@ -607,15 +602,22 @@ function cargarDocsDelArea(area) {
 function cargarEquiposEdicion() {
     const area = document.getElementById('input-area').value;
 
-    const render = () => {
-        const cache = JSON.parse(localStorage.getItem('cache_' + area) || "{}");
-        let combinados = {};
+    const render = (liveData = null) => {
+        let val;
+        if (liveData) {
+            val = liveData;
+        } else {
+            const cacheRaw = localStorage.getItem('cache_' + area);
+            try { val = JSON.parse(cacheRaw || "{}"); } catch(e) { val = {}; }
+        }
 
-        // Normalizar cache asegurando que cada objeto tenga su tag y usar MAYÚSCULAS como llave
-        Object.keys(cache).forEach(k => {
-            const tagKey = (cache[k].tag || k).toString().toUpperCase().trim();
-            combinados[tagKey] = { ...cache[k], tag: tagKey, fbKey: k };
-        });
+        let combinados = {};
+        if (val && typeof val === 'object') {
+            Object.keys(val).forEach(k => {
+                const tagKey = (val[k].tag || k).toString().toUpperCase().trim();
+                combinados[tagKey] = { ...val[k], tag: tagKey, fbKey: k };
+            });
+        }
 
         let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
         colaEnv.filter(q => q.area === area).forEach(q => {
@@ -655,8 +657,9 @@ function cargarEquiposEdicion() {
     if(database) {
         database.ref('equipos/'+area).off();
         database.ref('equipos/'+area).on('value', s => {
-            localStorage.setItem('cache_' + area, JSON.stringify(s.val() || {}));
-            render();
+            const data = s.val();
+            try { localStorage.setItem('cache_' + area, JSON.stringify(data || {})); } catch(e) {}
+            render(data);
         });
     }
 }
@@ -739,23 +742,29 @@ function procesarCarga() {
     let colaActualizada = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     colaActualizada = colaActualizada.filter(i => !(i.tag === tag && i.area === area));
     colaActualizada.push(equipo);
-    localStorage.setItem('cola_envios', JSON.stringify(colaActualizada));
 
-    // LIMPIAR DE LA COLA DE ELIMINACIÓN SI SE ESTÁ RE-AGREGANDO
-    let colaDelActualizada = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
-    colaDelActualizada = colaDelActualizada.filter(i => !(i.tag === tag && i.area === area));
-    localStorage.setItem('cola_eliminaciones', JSON.stringify(colaDelActualizada));
+    try {
+        localStorage.setItem('cola_envios', JSON.stringify(colaActualizada));
 
-    if (tagOriginalEdicion && (areaOriginalEdicion !== area || tagOriginalEdicion !== tag)) {
-        let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
-        colaDel.push({ area: areaOriginalEdicion, tag: tagOriginalEdicion });
-        localStorage.setItem('cola_eliminaciones', JSON.stringify(colaDel));
+        // LIMPIAR DE LA COLA DE ELIMINACIÓN SI SE ESTÁ RE-AGREGANDO
+        let colaDelActualizada = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+        colaDelActualizada = colaDelActualizada.filter(i => !(i.tag === tag && i.area === area));
+        localStorage.setItem('cola_eliminaciones', JSON.stringify(colaDelActualizada));
+
+        if (tagOriginalEdicion && (areaOriginalEdicion !== area || tagOriginalEdicion !== tag)) {
+            let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+            colaDel.push({ area: areaOriginalEdicion, tag: tagOriginalEdicion });
+            localStorage.setItem('cola_eliminaciones', JSON.stringify(colaDel));
+        }
+
+        notificar("DATOS GUARDADOS - SINCRONIZANDO...");
+        limpiarFormulario();
+        cargarEquiposEdicion();
+        sincronizarColas();
+    } catch (e) {
+        console.error("Error guardando en localStorage:", e);
+        notificar("ERROR: MEMORIA LLENA O FOTO MUY PESADA", "error");
     }
-
-    notificar("CAMBIO EN COLA DE SINCRONIZACIÓN");
-    limpiarFormulario();
-    cargarEquiposEdicion();
-    sincronizarColas();
 }
 
 function cargarPlanosEdicionGeneral() {
@@ -809,12 +818,11 @@ function guardarPlanoGeneral() {
 
     if (existePl) { notificar("YA EXISTE UN PLANO CON ESE TÍTULO EN ESTA ÁREA", "error"); return; }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    comprimirImagen(file, 0.7, (base64) => {
         const id = "plano_" + Date.now();
         const autor = sessionStorage.getItem('user_name') || 'Desconocido';
         const fecha = new Date().toLocaleString();
-        const data = { titulo: tit, foto: e.target.result, autor: autor, fecha: fecha };
+        const data = { titulo: tit, foto: base64, autor: autor, fecha: fecha };
 
         let cola = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
         cola.push({ area, id, data });
@@ -825,15 +833,16 @@ function guardarPlanoGeneral() {
         fileInput.value = "";
         const txt = document.getElementById('txt-plano-archivo');
         if(txt) txt.innerText = "CARGAR IMAGEN DEL PLANO";
+        const prev = document.getElementById('preview-plano-general');
+        if(prev) prev.style.display = 'none';
 
         cargarPlanosEdicionGeneral();
         sincronizarColas();
-    };
-    reader.readAsDataURL(file);
+    });
 }
 
 function eliminarPlanoGeneral(a, i) {
-    if(confirm("¿Borrar plano permanentemente?")) {
+    confirmarHMI("¿ELIMINAR PLANO?", "¿Borrar plano permanentemente?", () => {
         let colaDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
         colaDel.push({ area: a, id: i });
         localStorage.setItem('cola_planos_del', JSON.stringify(colaDel));
@@ -845,7 +854,7 @@ function eliminarPlanoGeneral(a, i) {
         notificar("BORRADO PENDIENTE");
         cargarPlanosEdicionGeneral();
         sincronizarColas();
-    }
+    });
 }
 
 function cargarManualParaEditar() {
@@ -1091,9 +1100,9 @@ function procesarSolicitud(id, estado) {
 }
 
 function denegarSolicitud(id) {
-    if(confirm("¿Deseas denegar y eliminar esta solicitud de acceso?")) {
+    confirmarHMI("¿DENEGAR ACCESO?", "¿Deseas denegar y eliminar esta solicitud de acceso?", () => {
         database.ref('personal_autorizado/'+id).remove().then(() => notificar("SOLICITUD ELIMINADA", "error"));
-    }
+    });
 }
 
 function crearNuevoEditor() {
@@ -1198,9 +1207,9 @@ function prepararEdicionAutorizado(id, nombre) {
 }
 
 function eliminarAutorizado(id) {
-    if(confirm("¿Eliminar acceso a ID: "+id+"?")) {
+    confirmarHMI("¿ELIMINAR ACCESO?", "¿Eliminar acceso a ID: "+id+"?", () => {
         database.ref('personal_autorizado/'+id).remove().then(() => notificar("ACCESO ELIMINADO"));
-    }
+    });
 }
 
 function crearNuevoAutorizado() {
@@ -1228,14 +1237,13 @@ function cambiarClaveMaestra() {
 
 function publicarNuevaVersion() {
     const v = (VERSION_APP + 0.1).toFixed(1);
-    database.ref('config/version').set(v).then(() => notificar("AVISO ENVIADO", "warning"));
+    database.ref('config/version').set(v).then(() => notificar("SISTEMA ACTUALIZADO - NOTIFICACIÓN ENVIADA", "warning"));
 }
 
 // ================= UTILIDADES ==================
 function notificar(msj, tipo = 'exito', emergente = false) {
     const msjUpper = msj.toUpperCase();
 
-    // Notificación Emergente (Nativa Android)
     if (emergente && typeof Android !== "undefined" && Android.showNativeNotification) {
         Android.showNativeNotification("HMI PLANTA CENTRO U6", msjUpper);
     }
@@ -1243,12 +1251,141 @@ function notificar(msj, tipo = 'exito', emergente = false) {
     const existentes = document.querySelectorAll('.toast-modern span');
     for (let a of existentes) { if (a.innerText === msjUpper) return; }
     let container = document.querySelector('.toast-container');
-    if (!container) { container = document.createElement('div'); container.className = 'toast-container'; document.body.appendChild(container); }
-    const toast = document.createElement('div'); toast.className = `toast-modern toast-${tipo === 'exito' ? 'success' : tipo}`;
-    toast.innerHTML = `<i class="fas fa-info-circle"></i> <span>${msjUpper}</span>`;
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        container.style.cssText = "position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%; pointer-events: none;";
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast-modern toast-${tipo}`;
+
+    let color = "#00ffcc";
+    let icon = "fa-check-double";
+    if (tipo === 'error') { color = "#ff4444"; icon = "fa-shield-virus"; }
+    else if (tipo === 'warning') { color = "#ffcc00"; icon = "fa-triangle-exclamation"; }
+    else if (tipo === 'info') { color = "#00ccff"; icon = "fa-fingerprint"; }
+
+    toast.style.cssText = `
+        background: rgba(10, 15, 20, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid ${color}44;
+        border-left: 4px solid ${color};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 14px;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 10px ${color}11;
+        transform: translateY(100px);
+        opacity: 0;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        min-width: 280px;
+        max-width: 90%;
+        pointer-events: auto;
+    `;
+
+    toast.innerHTML = `
+        <div style="background:${color}22; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; border: 1px solid ${color}33;">
+            <i class="fas ${icon}" style="color:${color}; font-size:1.2rem;"></i>
+        </div>
+        <div style="display:flex; flex-direction:column;">
+            <span style="font-weight:800; font-size:0.7rem; letter-spacing:1px; color:${color}; margin-bottom:1px;">${tipo.toUpperCase()}</span>
+            <span style="font-weight:600; font-size:0.8rem; color:#eee;">${msjUpper}</span>
+        </div>`;
+
     container.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 1500);
+    setTimeout(() => { toast.style.transform = "translateY(0)"; toast.style.opacity = "1"; }, 10);
+    setTimeout(() => {
+        toast.style.transform = "translateY(-20px) scale(0.9)";
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 500);
+    }, 3500);
+}
+
+function comprimirImagen(file, calidad, callback) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => notificar("ERROR AL LEER ARCHIVO", "error");
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onerror = () => notificar("ERROR AL PROCESAR IMAGEN", "error");
+        img.src = event.target.result;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const max = 1000;
+
+            if (width > height) {
+                if (width > max) {
+                    height *= max / width;
+                    width = max;
+                }
+            } else {
+                if (height > max) {
+                    width *= max / height;
+                    height = max;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            try {
+                const base64 = canvas.toDataURL('image/jpeg', calidad);
+                callback(base64);
+            } catch (e) {
+                notificar("ERROR AL COMPRIMIR", "error");
+            }
+        };
+    };
+    reader.readAsDataURL(file);
+}
+
+function confirmarHMI(titulo, mensaje, callback) {
+    let modal = document.querySelector('.modal-confirmacion');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.className = 'modal-confirmacion';
+        modal.innerHTML = `
+            <div class="confirm-box">
+                <h3 id="confirm-title"></h3>
+                <p id="confirm-msg"></p>
+                <div class="confirm-btns">
+                    <button class="btn-confirm btn-confirm-no" id="btn-confirm-no">CANCELAR</button>
+                    <button class="btn-confirm btn-confirm-yes" id="btn-confirm-yes">SÍ, BORRAR</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById('confirm-title').innerText = titulo.toUpperCase();
+    document.getElementById('confirm-msg').innerText = mensaje;
+    modal.style.display = 'flex';
+
+    const btnYes = document.getElementById('btn-confirm-yes');
+    const btnNo = document.getElementById('btn-confirm-no');
+
+    const newBtnYes = btnYes.cloneNode(true);
+    const newBtnNo = btnNo.cloneNode(true);
+    btnYes.parentNode.replaceChild(newBtnYes, btnYes);
+    btnNo.parentNode.replaceChild(newBtnNo, btnNo);
+
+    newBtnYes.onclick = () => {
+        modal.style.display = 'none';
+        callback();
+    };
+    newBtnNo.onclick = () => {
+        modal.style.display = 'none';
+    };
 }
 
 // ================= GESTIÓN DE LOGS Y NOTIFICACIONES PARA ADMIN ==================
@@ -1620,7 +1757,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const a = document.getElementById('input-area'); if(a) { a.addEventListener('change', cargarEquiposEdicion); cargarEquiposEdicion(); }
-    if(document.getElementById('input-manual-area')) { cargarManualParaEditar(); cargarPlanosEdicionGeneral(); cargarDocsEdicion(); }
+    if(document.getElementById('input-manual-area')) {
+        cargarManualParaEditar(); cargarPlanosEdicionGeneral(); cargarDocsEdicion();
+
+        // Listener para preview de Planos
+        const planoInput = document.getElementById('input-plano-foto-general');
+        if(planoInput) {
+            planoInput.addEventListener('change', e => {
+                const file = e.target.files[0];
+                if(file) {
+                    const txt = document.getElementById('txt-plano-archivo');
+                    if(txt) txt.innerText = "ARCHIVO: " + file.name.toUpperCase();
+                    const prev = document.getElementById('preview-plano-general');
+                    const imgPrev = document.getElementById('img-preview-plano-general');
+                    if(prev && imgPrev) {
+                        const r = new FileReader();
+                        r.onload = ev => { imgPrev.src = ev.target.result; prev.style.display = 'block'; };
+                        r.readAsDataURL(file);
+                    }
+                }
+            });
+        }
+    }
 
     const fotoInput = document.getElementById('input-archivo-foto');
     if(fotoInput) {
@@ -1629,24 +1787,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if(files.length + fotosBase64.length > 2) { notificar("MÁXIMO 2 FOTOS", "error"); return; }
 
             Array.from(files).forEach(f => {
-                const r = new FileReader();
-                r.onload = ev => {
-                    fotosBase64.push(ev.target.result);
+                comprimirImagen(f, 0.7, (base64) => {
+                    fotosBase64.push(base64);
                     actualizarPreviewsFotos();
-                };
-                r.readAsDataURL(f);
+                });
             });
         });
     }
 });
 
 // Helpers Genéricos
-function togglePasswordVisibility(id, icon) { const i = document.getElementById(id); const ic = document.getElementById(icon); if (i.type === "password") { i.type = "text"; ic.className = "fas fa-eye-slash"; } else { i.type = "password"; ic.className = "fas fa-eye"; } }
 function limpiarFormulario() {
     tagOriginalEdicion = null;
     areaOriginalEdicion = null;
     fotosBase64 = [];
     ['input-tag','input-nombre','input-info','input-operacion','input-ubicacion'].forEach(id=>{ if(document.getElementById(id)) document.getElementById(id).value=""; });
+    const fileEq = document.getElementById('input-archivo-foto');
+    if(fileEq) fileEq.value = "";
     const txt = document.getElementById('nombre-archivo-seleccionado');
     if(txt) txt.innerText = "SELECCIONAR DE GALERÍA";
     actualizarPreviewsFotos();
@@ -1676,7 +1833,7 @@ function abrirManual() { document.getElementById('modal-manual').style.display =
 function cerrarManual() { document.getElementById('modal-manual').style.display = 'none'; }
 function cerrarModal() { if(document.getElementById('modal-info')) document.getElementById('modal-info').style.display = 'none'; }
 function eliminarEquipo(a, t) {
-    if (confirm("¿Borrar equipo " + t + "?")) {
+    confirmarHMI("¿BORRAR EQUIPO?", "¿Borrar equipo " + t + "?", () => {
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
         colaDel.push({ area: a, tag: t });
         localStorage.setItem('cola_eliminaciones', JSON.stringify(colaDel));
@@ -1688,10 +1845,10 @@ function eliminarEquipo(a, t) {
         notificar("ELIMINACIÓN PENDIENTE");
         cargarEquiposEdicion();
         sincronizarColas();
-    }
+    });
 }
 function eliminarDocumento(a, i) {
-    if(confirm("¿Borrar documento?")) {
+    confirmarHMI("¿BORRAR ARCHIVO?", "¿Borrar documento?", () => {
         let colaDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
         colaDel.push({ area: a, id: i });
         localStorage.setItem('cola_docs_del', JSON.stringify(colaDel));
@@ -1703,9 +1860,13 @@ function eliminarDocumento(a, i) {
         notificar("BORRADO PENDIENTE");
         cargarDocsEdicion();
         sincronizarColas();
-    }
+    });
 }
-function solicitarEliminarU(u) { if(confirm("¿Borrar editor "+u+"?")) { if(database) database.ref('usuarios/'+u).remove(); } }
+function solicitarEliminarU(u) {
+    confirmarHMI("¿ELIMINAR EDITOR?", "¿Borrar editor "+u+"?", () => {
+        if(database) database.ref('usuarios/'+u).remove();
+    });
+}
 function cargarParaEditar(j, area) {
     const eq = JSON.parse(decodeURIComponent(j));
     // Normalización estricta al cargar para editar
