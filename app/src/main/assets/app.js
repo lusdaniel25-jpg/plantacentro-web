@@ -614,7 +614,7 @@ function cargarEquiposEdicion() {
         // Normalizar cache asegurando que cada objeto tenga su tag y usar MAYÚSCULAS como llave
         Object.keys(cache).forEach(k => {
             const tagKey = (cache[k].tag || k).toString().toUpperCase().trim();
-            combinados[tagKey] = { ...cache[k], tag: tagKey };
+            combinados[tagKey] = { ...cache[k], tag: tagKey, fbKey: k };
         });
 
         let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
@@ -645,7 +645,7 @@ function cargarEquiposEdicion() {
                     </div>
                     <div style="display: flex; gap: 8px;">
                         <button onclick="cargarParaEditar('${encodeURIComponent(JSON.stringify(eq))}', '${area}')" style="background: rgba(0,204,255,0.15); border: 1.5px solid #00ccff; color: #00ccff; padding: 6px 10px; border-radius: 8px;"><i class="fas fa-edit"></i></button>
-                        <button onclick="eliminarEquipo('${area}', '${eq.tag}')" style="background: rgba(255,68,68,0.15); border: 1.5px solid #ff4444; color: #ff4444; padding: 6px 10px; border-radius: 8px;"><i class="fas fa-trash"></i></button>
+                        <button onclick="eliminarEquipo('${area}', '${eq.fbKey || eq.tag}')" style="background: rgba(255,68,68,0.15); border: 1.5px solid #ff4444; color: #ff4444; padding: 6px 10px; border-radius: 8px;"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>`;
         });
@@ -684,7 +684,7 @@ function procesarCarga() {
             if (!cacheRaw || cacheRaw === "undefined" || cacheRaw === "null") continue;
 
             const cacheArea = JSON.parse(cacheRaw);
-            const equiposArea = Object.entries(cacheArea).map(([t, e]) => ({ ...e, tag: e.tag || t }));
+            const equiposArea = Object.entries(cacheArea).map(([t, e]) => ({ ...e, tag: e.tag || t, fbKey: t }));
 
             // Añadir los que están en cola de envío para esta área (si no están ya)
             colaEnv.filter(e => e.area === a).forEach(e => {
@@ -693,10 +693,11 @@ function procesarCarga() {
 
             const conflicto = equiposArea.find(e => {
                 const eTag = (e.tag || "").toString().trim().toUpperCase();
+                const eKey = (e.fbKey || e.tag || "").toString().trim().toUpperCase();
 
                 // 1. IGNORAR si es el equipo que estamos editando exactamente
                 if (tagOriginalEdicion && areaOriginalEdicion) {
-                    if (eTag === tagOriginalEdicion.toString().trim().toUpperCase() && a === areaOriginalEdicion) {
+                    if (eKey === tagOriginalEdicion && a === areaOriginalEdicion) {
                         return false;
                     }
                 }
@@ -1708,7 +1709,7 @@ function solicitarEliminarU(u) { if(confirm("¿Borrar editor "+u+"?")) { if(data
 function cargarParaEditar(j, area) {
     const eq = JSON.parse(decodeURIComponent(j));
     // Normalización estricta al cargar para editar
-    tagOriginalEdicion = (eq.tag || "").toString().trim().toUpperCase();
+    tagOriginalEdicion = (eq.fbKey || eq.tag || "").toString().trim().toUpperCase();
     areaOriginalEdicion = (area || "").toString().trim();
 
     if (document.getElementById('input-area')) document.getElementById('input-area').value = area;
