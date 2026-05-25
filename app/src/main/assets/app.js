@@ -109,9 +109,12 @@ function conectarFirebase() {
                     verificarActualizaciones();
                     sincronizarColas();
 
-                    // Sincronizar clave maestra desde la nube
+                    // Sincronizar datos maestros desde la nube
                     database.ref('config/master_pass').on('value', s => {
                         if(s.val()) localStorage.setItem('master_pass', s.val());
+                    });
+                    database.ref('config/master_name').on('value', s => {
+                        if(s.val()) localStorage.setItem('master_name', s.val());
                     });
                 } else {
                     // Actualizar indicadores visuales globales
@@ -238,9 +241,10 @@ function verificarIdentidad() {
     const masterPass = localStorage.getItem('master_pass') || 'luis2026';
     const localUsers = JSON.parse(localStorage.getItem('user_db') || "{}");
 
+    const masterName = localStorage.getItem('master_name') || 'luis';
     // Casos especiales (Maestro o Usuarios Locales)
-    if (id.toLowerCase() === 'luis' || id === masterPass || id === "6969") {
-        sessionStorage.setItem('user_name', 'Luis');
+    if (id.toLowerCase() === masterName.toLowerCase() || id === masterPass || id === "6969") {
+        sessionStorage.setItem('user_name', masterName);
         entrarArea(areaSeleccionadaPaso);
         return;
     }
@@ -302,12 +306,13 @@ function confirmarAcceso() {
     const masterPass = localStorage.getItem('master_pass') || 'luis2026';
     const localUsers = JSON.parse(localStorage.getItem('user_db') || "{}");
 
-    // Lógica prioritaria para el Maestro (Luis)
-    if(u === 'luis') {
-        if(p === masterPass || p === 'luis2026' || p === '6969') {
+    // Lógica prioritaria para el Maestro
+    const masterName = localStorage.getItem('master_name') || 'luis';
+    if(u === masterName.toLowerCase()) {
+        if(p === masterPass || p === '6969') {
             localStorage.removeItem('user_id_std'); // LIMPIAR ID DE LECTOR PARA EVITAR CONFLICTOS DE PRESENCIA
             sessionStorage.setItem('user_role', 'super');
-            sessionStorage.setItem('user_name', 'Luis');
+            sessionStorage.setItem('user_name', masterName);
             setTimeout(() => { window.location.replace("admin.html"); }, 600);
             return;
         } else {
@@ -936,8 +941,10 @@ function cargarListaUsuarios() {
         const us = {...usuariosData};
         const pr = presenciaData;
 
-        if(!us['luis']) {
-            us['luis'] = { nombre: 'luis', clave: localStorage.getItem('master_pass') || 'luis2026', rol: 'super' };
+        const masterKey = localStorage.getItem('master_name') || 'luis';
+        if(!us[masterKey]) {
+            const mP = localStorage.getItem('master_pass') || 'luis2026';
+            us[masterKey] = { nombre: masterKey, clave: mP, rol: 'super' };
         }
 
         const maestros = Object.keys(us).filter(u => us[u].rol === 'super');
@@ -976,7 +983,8 @@ function generarItemUsuario(u, data, presenceObj) {
     const colorBorde = esMaestro ? '#ff4444' : '#2ecc71';
     const colorFondo = esMaestro ? 'rgba(255,68,68,0.05)' : 'rgba(46,204,113,0.05)';
     const etiqueta = esMaestro ? 'MAESTRO / ADMINISTRADOR' : 'EDITOR TÉCNICO';
-    const esRoot = u === 'luis';
+    const masterName = localStorage.getItem('master_name') || 'luis';
+    const esRoot = u.toLowerCase() === masterName.toLowerCase();
 
     const estado = (presenceObj && presenceObj.estado) ? presenceObj.estado : 'offline';
     const ultima = (presenceObj && presenceObj.ultima) ? presenceObj.ultima : null;
@@ -1093,6 +1101,16 @@ function crearNuevoEditor() {
     const rol = document.getElementById('nuevo-usuario-rol') ? document.getElementById('nuevo-usuario-rol').value : 'editor';
     const original = document.getElementById('edit-user-original-name').value;
     if(!nom || !cla) return;
+
+    const masterName = localStorage.getItem('master_name') || 'luis';
+    if(original === masterName) {
+        localStorage.setItem('master_name', nom);
+        localStorage.setItem('master_pass', cla);
+        if(database) {
+            database.ref('config/master_name').set(nom);
+            database.ref('config/master_pass').set(cla);
+        }
+    }
 
     if(original && original !== nom) { database.ref('usuarios/'+original).remove(); }
 
@@ -1249,7 +1267,8 @@ function monitorearActividad() {
     ref.on('child_added', snap => {
         if (!logsVigilanteActivo) return;
         const log = snap.val();
-        if (log.usuario.toLowerCase() !== 'luis') {
+        const masterName = localStorage.getItem('master_name') || 'luis';
+        if (log.usuario.toLowerCase() !== masterName.toLowerCase()) {
             notificar(`ALERTA ACTIVIDAD: ${log.usuario.toUpperCase()} - ${log.accion}`, "warning", true);
             if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
         }
