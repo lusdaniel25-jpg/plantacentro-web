@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
                 
-                if (url.startsWith("mailto:") || url.startsWith("tel:") || url.contains("wa.me") || url.startsWith("whatsapp:")) {
+                if (url.startsWith("mailto:") || url.startsWith("tel:") || url.contains("wa.me") || url.startsWith("whatsapp:") || url.contains("t.me") || url.contains("telegram.me")) {
                     try {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                         startActivity(intent)
@@ -288,6 +288,14 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun downloadUpdate(url: String) {
             try {
+                // Si el link es de Telegram, abrirlo directamente sin pasar por DownloadManager
+                if (url.contains("t.me") || url.contains("telegram.me")) {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    mContext.startActivity(intent)
+                    return
+                }
+
                 // Limpiar descargas previas
                 val file = File(mContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "update.apk")
                 if (file.exists()) file.delete()

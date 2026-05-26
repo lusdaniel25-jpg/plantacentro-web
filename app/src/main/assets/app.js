@@ -34,7 +34,7 @@ const firebaseConfig = {
   appId: "1:269464703762:web:7716249688c2567ff119cb"
 };
 
-const LINK_DESCARGA_APK = "https://drive.google.com/uc?export=download&id=1nKGa8WelX-toTzC_v-NldKf4NFTbHCDD";
+const LINK_DESCARGA_APK = "https://t.me/unidad6";
 
 let database;
 let listenerConexionActivo = false;
