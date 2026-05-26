@@ -106,7 +106,13 @@ class MainActivity : AppCompatActivity() {
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 if (request?.isForMainFrame == true) {
-                    super.onReceivedError(view, request, error)
+                    val failingUrl = request.url.toString()
+                    // Si falla la carga del servidor (no hay internet o server caído)
+                    // cargamos la versión local que está en los assets como respaldo
+                    if (!failingUrl.startsWith("file:///android_asset/")) {
+                        webView.loadUrl("file:///android_asset/bienvenida.html")
+                        Toast.makeText(this@MainActivity, "Modo sin conexión activado", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -131,7 +137,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.addJavascriptInterface(WebAppInterface(this), "Android")
-        webView.loadUrl("file:///android_asset/bienvenida.html")
+        
+        // --- ACTUALIZACIÓN INSTANTÁNEA ---
+        // URL de tu servidor en GitHub Pages
+        val serverUrl = "https://lusdaniel25-jpg.github.io/plantacentro-web/bienvenida.html"
+        webView.loadUrl(serverUrl)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(enabled = true) {
             override fun handleOnBackPressed() {
