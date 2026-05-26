@@ -235,12 +235,13 @@ class MainActivity : AppCompatActivity() {
         unregisterReceiver(onDownloadComplete)
     }
 
+    @Suppress("unused")
     class WebAppInterface(private val mContext: Context) {
         @JavascriptInterface
         fun createShortcut() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val shortcutManager = mContext.getSystemService(ShortcutManager::class.java)
-                if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported) {
+                if ((shortcutManager != null) && shortcutManager.isRequestPinShortcutSupported) {
                     val intent = Intent(mContext, MainActivity::class.java).apply {
                         action = Intent.ACTION_MAIN
                         addCategory(Intent.CATEGORY_LAUNCHER)
@@ -290,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                 chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 mContext.startActivity(chooser)
 
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 val sendIntent = Intent(Intent.ACTION_SEND).apply {
                     putExtra(Intent.EXTRA_TEXT, text)
                     type = "text/plain"
@@ -320,12 +321,12 @@ class MainActivity : AppCompatActivity() {
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                     .setDestinationInExternalFilesDir(mContext, Environment.DIRECTORY_DOWNLOADS, "update.apk")
 
-                val manager = mContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                val manager = mContext.getSystemService(DOWNLOAD_SERVICE) as DownloadManager
                 manager.enqueue(request)
                 
                 Toast.makeText(mContext, "Descargando... al terminar se abrirá el instalador", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            } catch (_: Exception) {
+                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                 mContext.startActivity(intent)
             }
         }
@@ -381,9 +382,11 @@ class MainActivity : AppCompatActivity() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 
-                mContext.startActivity(Intent.createChooser(intent, "Abrir con...").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
+                mContext.startActivity(
+                    Intent.createChooser(intent, "Abrir con...").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
+                )
 
             } catch (e: Exception) {
                 Toast.makeText(mContext, "Error: ${e.message}", Toast.LENGTH_LONG).show()
