@@ -25,6 +25,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.util.Base64
+import androidx.core.net.toUri
 import android.view.WindowManager
 import android.widget.Toast
 import android.app.NotificationChannel
@@ -52,7 +54,7 @@ class MainActivity : AppCompatActivity() {
                 val count = data.clipData!!.itemCount
                 Array(count) { data.clipData!!.getItemAt(it).uri }
             } else if (data?.dataString != null) {
-                arrayOf(Uri.parse(data.dataString))
+                arrayOf(data.dataString!!.toUri())
             } else null
             filePathCallback?.onReceiveValue(results)
         } else {
@@ -93,12 +95,12 @@ class MainActivity : AppCompatActivity() {
                 val url = request?.url?.toString() ?: return false
                 
                 if (url.startsWith("mailto:") || url.startsWith("tel:") || url.contains("wa.me") || url.startsWith("whatsapp:") || url.contains("t.me") || url.contains("telegram.me")) {
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    return try {
+                        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                         startActivity(intent)
-                        return true
-                    } catch (e: Exception) {
-                        return false
+                        true
+                    } catch (_: Exception) {
+                        false
                     }
                 }
                 return false
@@ -121,14 +123,14 @@ class MainActivity : AppCompatActivity() {
             override fun onShowFileChooser(
                 webView: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
-                fileChooserParams: FileChooserParams?
+                fileChooserParams: FileChooserParams?,
             ): Boolean {
                 this@MainActivity.filePathCallback = filePathCallback
                 val intent = fileChooserParams?.createIntent()
                 intent?.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                 try {
                     fileChooserLauncher.launch(intent)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     this@MainActivity.filePathCallback = null
                     return false
                 }
@@ -142,27 +144,30 @@ class MainActivity : AppCompatActivity() {
         val serverUrl = "file:///android_asset/bienvenida.html"
         webView.loadUrl(serverUrl)
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(enabled = true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) {
-                    webView.goBack()
-                } else {
-                    val currentTime = System.currentTimeMillis()
-                    if (currentTime - lastBackPressTime < 2000) {
-                        isEnabled = false
-                        onBackPressedDispatcher.onBackPressed()
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(enabled = true) {
+                override fun handleOnBackPressed() {
+                    if (webView.canGoBack()) {
+                        webView.goBack()
                     } else {
-                        lastBackPressTime = currentTime
-                        Toast.makeText(this@MainActivity, "Presiona atrás de nuevo para salir", Toast.LENGTH_SHORT).show()
+                        val currentTime = System.currentTimeMillis()
+                        if ((currentTime - lastBackPressTime) < 2000) {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                        } else {
+                            lastBackPressTime = currentTime
+                            Toast.makeText(this@MainActivity, "Presiona atrás de nuevo para salir", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
-            }
-        })
+            },
+        )
 
         // Registrar receptor para cuando termine la descarga (Compatibilidad con Android 13+)
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(onDownloadComplete, filter, Context.RECEIVER_EXPORTED)
+            registerReceiver(onDownloadComplete, filter, RECEIVER_EXPORTED)
         } else {
             registerReceiver(onDownloadComplete, filter)
         }
@@ -182,7 +187,7 @@ class MainActivity : AppCompatActivity() {
             val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             val file = File(downloadsDir, "update.apk")
             
-            if (file.exists() && file.length() > 0) {
+            if (file.exists() && (file.length() > 0)) {
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                 val installIntent = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(uri, "application/vnd.android.package-archive")
@@ -197,7 +202,7 @@ class MainActivity : AppCompatActivity() {
             // Fallback: intentar abrir carpeta de descargas
             try {
                 startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
-            } catch (ex: Exception) {}
+            } catch (_: Exception) {}
         }
     }
 
@@ -210,7 +215,7 @@ class MainActivity : AppCompatActivity() {
                 description = descriptionText
             }
             val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -299,7 +304,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 // Si el link es de Telegram, abrirlo directamente sin pasar por DownloadManager
                 if (url.contains("t.me") || url.contains("telegram.me")) {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     mContext.startActivity(intent)
                     return
@@ -309,7 +314,7 @@ class MainActivity : AppCompatActivity() {
                 val file = File(mContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "update.apk")
                 if (file.exists()) file.delete()
 
-                val request = DownloadManager.Request(Uri.parse(url))
+                val request = DownloadManager.Request(url.toUri())
                     .setTitle("Actualización Planta Centro")
                     .setDescription("Descargando nueva versión...")
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -330,8 +335,12 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(mContext, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
-            val pendingIntent: PendingIntent = PendingIntent.getActivity(mContext, 0, intent,
-                PendingIntent.FLAG_IMMUTABLE)
+            val pendingIntent: PendingIntent = PendingIntent.getActivity(
+                mContext,
+                0,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE,
+            )
 
             val builder = NotificationCompat.Builder(mContext, "CHANNEL_U6_ALERTS")
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -352,7 +361,7 @@ class MainActivity : AppCompatActivity() {
         fun saveFile(base64: String, fileName: String) {
             try {
                 val pureBase64 = base64.substringAfter(",")
-                val fileBytes = android.util.Base64.decode(pureBase64, android.util.Base64.DEFAULT)
+                val fileBytes = Base64.decode(pureBase64, Base64.DEFAULT)
                 
                 // Guardamos en el directorio público de descargas para que sea accesible
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -383,9 +392,9 @@ class MainActivity : AppCompatActivity() {
 
         private fun getMimeType(url: String): String {
             return when {
-                url.endsWith(".pdf", true) -> "application/pdf"
-                url.endsWith(".docx", true) || url.endsWith(".doc", true) -> "application/msword"
-                url.endsWith(".xlsx", true) || url.endsWith(".xls", true) -> "application/vnd.ms-excel"
+                url.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+                url.endsWith(".docx", ignoreCase = true) || url.endsWith(".doc", ignoreCase = true) -> "application/msword"
+                url.endsWith(".xlsx", ignoreCase = true) || url.endsWith(".xls", ignoreCase = true) -> "application/vnd.ms-excel"
                 else -> "*/*"
             }
         }
