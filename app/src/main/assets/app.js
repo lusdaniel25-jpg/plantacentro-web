@@ -1449,7 +1449,20 @@ function cerrarSesion() {
     setTimeout(() => { window.location.replace("bienvenida.html"); }, 800);
 }
 
-function verificarActualizaciones() { if (database) database.ref('config/version').on('value', (s) => { if (parseFloat(s.val()) > VERSION_APP) { const btn = document.getElementById('btn-descargar-bienvenida'); if(btn) btn.style.display = 'inline-flex'; } }); }
+function verificarActualizaciones() {
+    if (database) {
+        database.ref('config/version').on('value', (s) => {
+            const btn = document.getElementById('btn-descargar-bienvenida');
+            if(btn) {
+                if (parseFloat(s.val()) > VERSION_APP) {
+                    btn.style.display = 'inline-flex';
+                } else {
+                    btn.style.display = 'none';
+                }
+            }
+        });
+    }
+}
 
 
 // ================= ANALIZADOR TÉCNICO AVANZADO DE RENDIMIENTO Y RIESGO METALÚRGICO ==================

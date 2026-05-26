@@ -138,9 +138,8 @@ class MainActivity : AppCompatActivity() {
 
         webView.addJavascriptInterface(WebAppInterface(this), "Android")
         
-        // --- ACTUALIZACIÓN INSTANTÁNEA ---
-        // URL de tu servidor en GitHub Pages
-        val serverUrl = "https://lusdaniel25-jpg.github.io/plantacentro-web/bienvenida.html"
+        // --- ARRANQUE LOCAL DESDE APK ---
+        val serverUrl = "file:///android_asset/bienvenida.html"
         webView.loadUrl(serverUrl)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(enabled = true) {
