@@ -1,5 +1,5 @@
 // Configuración de Firebase - Planta Centro Unidad 6
-const VERSION_APP = 1.0;
+const VERSION_APP = 1.1;
 
 // --- SHIM DE COMPATIBILIDAD NAVEGADOR/PC ---
 if (typeof Android === "undefined") {
@@ -1433,6 +1433,9 @@ function compartirApp() {
 }
 
 function descargarApp() {
+    const btn = document.getElementById('btn-descargar-bienvenida');
+    if(btn) btn.style.display = 'none';
+
     if (typeof Android !== "undefined" && Android.downloadUpdate) {
         Android.downloadUpdate(LINK_DESCARGA_APK);
     } else {

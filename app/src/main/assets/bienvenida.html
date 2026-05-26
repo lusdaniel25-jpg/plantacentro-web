@@ -234,7 +234,15 @@
     <script src="app.js"></script>
     <script>
         function toggleCortina() {
-            document.getElementById('cortina-roles').classList.toggle('active');
+            const cortina = document.getElementById('cortina-roles');
+            cortina.classList.toggle('active');
+
+            // Bloquear scroll del body cuando la cortina está abierta
+            if (cortina.classList.contains('active')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
         }
         function abrirBio() {
             document.getElementById('modal-bio').style.display = 'flex';
