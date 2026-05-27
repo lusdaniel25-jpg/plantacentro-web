@@ -1,6 +1,17 @@
 // Configuración de Firebase - Planta Centro Unidad 6
 const VERSION_APP = 1.1;
 
+// --- SEGURIDAD DE FLUJO INICIAL (INSTANTÁNEA) ---
+(function() {
+    const url = window.location.href;
+    const sesion = sessionStorage.getItem('user_name');
+    const esBienvenida = url.includes("bienvenida.html");
+
+    if (!esBienvenida && !sesion) {
+        window.location.replace("bienvenida.html");
+    }
+})();
+
 // --- SHIM DE COMPATIBILIDAD NAVEGADOR/PC ---
 if (typeof Android === "undefined") {
     console.log("Detectado: Navegador Web (Simulando interfaz Android)");
@@ -1747,7 +1758,9 @@ function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {
 
 // ================= INICIALIZACIÓN ==================
 document.addEventListener('DOMContentLoaded', () => {
-    conectarFirebase(); const area = sessionStorage.getItem('area_actual'); const role = sessionStorage.getItem('user_role');
+    conectarFirebase();
+    const area = sessionStorage.getItem('area_actual');
+    const role = sessionStorage.getItem('user_role');
     const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = (area === 'Operaciones') ? 'flex' : 'none';
 
     // Monitoreo global para el Maestro

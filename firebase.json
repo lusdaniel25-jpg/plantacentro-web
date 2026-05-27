@@ -1,0 +1,17 @@
+{
+  "hosting": {
+    "public": "app/src/main/assets",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "/bienvenida.html",
+        "type": 302
+      }
+    ]
+  }
+}
