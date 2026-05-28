@@ -1505,32 +1505,31 @@ function verificarActualizaciones() {
 
 // ================= ANALIZADOR TÉCNICO AVANZADO DE RENDIMIENTO Y RIESGO METALÚRGICO ==================
 function analizarRendimiento() {
-    const tiempo = parseFloat(document.getElementById('calc-tiempo').value) || 0;
     const mw = parseFloat(document.getElementById('calc-mw').value) || 0;
-    const fuel = parseFloat(document.getElementById('calc-fuel').value) || 0;
+    const fuel = parseFloat(document.getElementById('calc-fuel').value) || 0; // Entrada en T/h
     const pres = parseFloat(document.getElementById('calc-presion').value) || 0;
     const temp = parseFloat(document.getElementById('calc-temp').value) || 0;
     const vacio = parseFloat(document.getElementById('calc-vacio').value) || 0;
 
-    if (tiempo === 0 && mw <= 0) {
-        notificar("INGRESE TIEMPO O CARGA", "error");
+    if (mw <= 0) {
+        notificar("INGRESE LA CARGA (MW)", "error");
         return;
     }
 
     // --- CÁLCULOS TERMODINÁMICOS ---
-    const pci = 10200;
-    const eficiencia = mw > 0 ? ((mw * 860) / (fuel * pci)) * 100 : 0;
+    const pci = 10200; // kcal/kg
+    const fuel_kg_h = fuel * 1000; // Convertir T/h a kg/h para el cálculo
+    const eficiencia = ((mw * 860) / (fuel_kg_h * pci)) * 100;
 
     let reporte = "";
     let consejos = "";
     let criticidad = "normal";
     let colorHex = "#00ffcc";
 
-    // --- ANÁLISIS DE FASE DE ARRANQUE ---
+    // --- ANÁLISIS DE FASE ---
     let faseActual = "ESTABILIZACIÓN";
-    if (tiempo < 30) faseActual = "RODADO / CALENTAMIENTO";
-    else if (tiempo >= 30 && tiempo < 60) faseActual = "PRE-SINCRONIZACIÓN";
-    else if (mw > 0 && mw < 580) faseActual = "SUBIDA DE CARGA";
+    if (mw > 0 && mw < 120) faseActual = "RODADO / SINCRONIZACIÓN";
+    else if (mw >= 120 && mw < 580) faseActual = "SUBIDA DE CARGA";
     else if (mw >= 580) faseActual = "OPERACIÓN NOMINAL";
 
     // --- DETECCIÓN DE FALLAS Y FUGAS ---
@@ -1583,11 +1582,11 @@ function analizarRendimiento() {
 
     resDiv.style.display = 'block';
     resDiv.style.borderLeft = `5px solid ${colorHex}`;
-    resEfi.innerHTML = mw > 0 ? `EFICIENCIA η: ${eficiencia.toFixed(2)}%` : `ARRANQUE EN PROGRESO`;
+    resEfi.innerHTML = `EFICIENCIA TÉRMICA η: ${eficiencia.toFixed(2)}%`;
     resEfi.style.color = colorHex;
     resDiag.innerHTML = `<b>FASE: ${faseActual}</b><br>${reporte}${consejos ? '<div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.1);">' + consejos + '</div>' : ''}`;
 
-    dibujarGraficaArranqueCompleta(tiempo, mw, temp, criticidad);
+    dibujarGraficaArranqueCompleta(0, mw, temp, criticidad);
     notificar("ANÁLISIS TÉCNICO COMPLETADO", "exito");
 }
 
@@ -1600,27 +1599,27 @@ function actualizarInterfazConversor() {
 
     const configs = {
         presion: [
-            { id: 'c-bar', label: 'BAR (kg/cm²)', unit: 'bar' },
-            { id: 'c-psi', label: 'PSI (lb/in²)', unit: 'psi' },
-            { id: 'c-mpa', label: 'MegaPascales (MPa)', unit: 'mpa' },
-            { id: 'c-pa', label: 'KiloPascales (kPa)', unit: 'kpa' },
-            { id: 'c-mbar', label: 'mbar (Vacío)', unit: 'mbar' }
+            { id: 'c-bar', label: 'BAR (Presión Atmosférica/Métrica)', unit: 'bar' },
+            { id: 'c-psi', label: 'PSI (Libras por pulgada²)', unit: 'psi' },
+            { id: 'c-mpa', label: 'MPa (MegaPascales)', unit: 'mpa' },
+            { id: 'c-pa', label: 'kPa (KiloPascales)', unit: 'kpa' },
+            { id: 'c-mbar', label: 'mbar (Vacío/Baja Presión)', unit: 'mbar' }
         ],
         temp: [
-            { id: 'c-celsius', label: 'Celsius (°C)', unit: 'c' },
-            { id: 'c-faren', label: 'Fahrenheit (°F)', unit: 'f' },
-            { id: 'c-kelvin', label: 'Kelvin (K)', unit: 'k' }
+            { id: 'c-celsius', label: 'Grados Celsius (°C)', unit: 'c' },
+            { id: 'c-faren', label: 'Grados Fahrenheit (°F)', unit: 'f' },
+            { id: 'c-kelvin', label: 'Kelvin (Escala Absoluta K)', unit: 'k' }
         ],
         flujo: [
             { id: 'c-th', label: 'Toneladas/Hora (t/h)', unit: 'th' },
-            { id: 'c-kgs', label: 'Kilogramos/Seg (kg/s)', unit: 'kgs' },
+            { id: 'c-kgs', label: 'Kilogramos/Segundo (kg/s)', unit: 'kgs' },
             { id: 'c-lbh', label: 'Libras/Hora (lb/h)', unit: 'lbh' }
         ],
         potencia: [
-            { id: 'c-mw', label: 'MegaWatts (MW)', unit: 'mw' },
+            { id: 'c-mw', label: 'MegaWatts (MW - Potencia Bruta)', unit: 'mw' },
             { id: 'c-kw', label: 'KiloWatts (kW)', unit: 'kw' },
-            { id: 'c-hp', label: 'Caballos (HP)', unit: 'hp' },
-            { id: 'c-btu', label: 'BTU/h', unit: 'btu' }
+            { id: 'c-hp', label: 'Caballos de Fuerza (HP)', unit: 'hp' },
+            { id: 'c-btu', label: 'BTU/h (Potencia Térmica)', unit: 'btu' }
         ]
     };
 
@@ -1638,6 +1637,7 @@ function ejecutarConversion(unidad, val) {
     if (isNaN(v)) return;
 
     const tipo = document.getElementById('conv-tipo').value;
+    const f = (n, p = 6) => Number(Number(n).toFixed(p)); // Limpia ceros decimales innecesarios
 
     if (tipo === 'presion') {
         let bar = 0;
@@ -1647,11 +1647,11 @@ function ejecutarConversion(unidad, val) {
         if (unidad === 'kpa') bar = v / 100;
         if (unidad === 'mpa') bar = v * 10;
 
-        document.getElementById('c-bar').value = unidad === 'bar' ? val : bar.toFixed(4);
-        document.getElementById('c-psi').value = unidad === 'psi' ? val : (bar / 0.0689476).toFixed(2);
-        document.getElementById('c-mbar').value = unidad === 'mbar' ? val : (bar * 1000).toFixed(2);
-        document.getElementById('c-pa').value = unidad === 'kpa' ? val : (bar * 100).toFixed(2);
-        if(document.getElementById('c-mpa')) document.getElementById('c-mpa').value = unidad === 'mpa' ? val : (bar / 10).toFixed(4);
+        if(unidad !== 'bar') document.getElementById('c-bar').value = f(bar);
+        if(unidad !== 'psi') document.getElementById('c-psi').value = f(bar / 0.0689476, 4);
+        if(unidad !== 'mbar') document.getElementById('c-mbar').value = f(bar * 1000, 4);
+        if(unidad !== 'kpa') document.getElementById('c-pa').value = f(bar * 100, 4);
+        if(document.getElementById('c-mpa') && unidad !== 'mpa') document.getElementById('c-mpa').value = f(bar / 10, 6);
     }
     else if (tipo === 'temp') {
         let c = 0;
@@ -1659,9 +1659,9 @@ function ejecutarConversion(unidad, val) {
         if (unidad === 'f') c = (v - 32) * 5/9;
         if (unidad === 'k') c = v - 273.15;
 
-        document.getElementById('c-celsius').value = unidad === 'c' ? val : c.toFixed(2);
-        document.getElementById('c-faren').value = unidad === 'f' ? val : (c * 9/5 + 32).toFixed(2);
-        document.getElementById('c-kelvin').value = unidad === 'k' ? val : (c + 273.15).toFixed(2);
+        if(unidad !== 'c') document.getElementById('c-celsius').value = f(c, 2);
+        if(unidad !== 'f') document.getElementById('c-faren').value = f(c * 9/5 + 32, 2);
+        if(unidad !== 'k') document.getElementById('c-kelvin').value = f(c + 273.15, 2);
     }
     else if (tipo === 'flujo') {
         let th = 0;
@@ -1669,9 +1669,9 @@ function ejecutarConversion(unidad, val) {
         if (unidad === 'kgs') th = v * 3.6;
         if (unidad === 'lbh') th = v * 0.000453592;
 
-        document.getElementById('c-th').value = unidad === 'th' ? val : th.toFixed(3);
-        document.getElementById('c-kgs').value = unidad === 'kgs' ? val : (th / 3.6).toFixed(3);
-        document.getElementById('c-lbh').value = unidad === 'lbh' ? val : (th / 0.000453592).toFixed(2);
+        if(unidad !== 'th') document.getElementById('c-th').value = f(th, 4);
+        if(unidad !== 'kgs') document.getElementById('c-kgs').value = f(th / 3.6, 4);
+        if(unidad !== 'lbh') document.getElementById('c-lbh').value = f(th / 0.000453592, 2);
     }
     else if (tipo === 'potencia') {
         let mw = 0;
@@ -1680,10 +1680,10 @@ function ejecutarConversion(unidad, val) {
         if (unidad === 'hp') mw = v * 0.0007457;
         if (unidad === 'btu') mw = v * 0.000000293071;
 
-        document.getElementById('c-mw').value = unidad === 'mw' ? val : mw.toFixed(4);
-        document.getElementById('c-kw').value = unidad === 'kw' ? val : (mw * 1000).toFixed(2);
-        document.getElementById('c-hp').value = unidad === 'hp' ? val : (mw / 0.0007457).toFixed(2);
-        document.getElementById('c-btu').value = unidad === 'btu' ? val : (mw / 0.000000293071).toFixed(2);
+        if(unidad !== 'mw') document.getElementById('c-mw').value = f(mw, 6);
+        if(unidad !== 'kw') document.getElementById('c-kw').value = f(mw * 1000, 4);
+        if(unidad !== 'hp') document.getElementById('c-hp').value = f(mw / 0.0007457, 4);
+        if(unidad !== 'btu') document.getElementById('c-btu').value = f(mw / 0.000000293071, 2);
     }
 }
 

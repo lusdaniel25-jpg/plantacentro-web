@@ -136,14 +136,19 @@
 
             <div id="display-operacion">
                 <section class="manual-seccion">
-                    <h3><i class="fas fa-list-ol"></i> PASOS SECUENCIALES DE ARRANQUE</h3>
-                    <div id="op-pasos-arranque-lista" style="display: flex; flex-direction: column; gap: 8px;">
-                        <!-- Se llena con divs de pasos -->
+                    <button class="accordion-admin" style="border-color:#00ffcc; color:#00ffcc; background: rgba(0, 255, 204, 0.05); margin-bottom:10px;" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('active')">
+                        <span><i class="fas fa-list-ol"></i> PASOS SECUENCIALES DE ARRANQUE</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="panel-admin">
+                        <div id="op-pasos-arranque-lista" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; background: rgba(0, 255, 204, 0.02); border: 1px solid rgba(0, 255, 204, 0.1); border-radius: 8px;">
+                            <!-- Se llena con divs de pasos -->
+                        </div>
                     </div>
                 </section>
 
                 <section class="manual-seccion">
-                    <h3><i class="fas fa-chart-line"></i> CONDICIONES EN SERVICIO</h3>
+                    <h3 style="color: #00ffcc; border-left: 4px solid #00ffcc; padding-left: 10px;"><i class="fas fa-chart-line"></i> CONDICIONES NOMINALES EN SERVICIO</h3>
                     <div id="op-condiciones" class="paso-item" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <!-- Se llena dinámicamente -->
                     </div>
@@ -157,23 +162,19 @@
                 <!-- Gráfica Dinámica de Curva de Arranque -->
                 <div style="background: #000; border-radius: 8px; border: 1px solid #333; margin-bottom: 15px; padding: 10px;">
                     <h4 style="color: #00ffcc; font-size: 0.65rem; margin-top: 0; display: flex; justify-content: space-between;">
-                        <span>CURVA DE ARRANQUE (DINÁMICA)</span>
-                        <span id="txt-fase-arranque" style="color: #ffcc00;">FASE: ESTABILIZACIÓN</span>
+                        <span>CURVA DE CARGA (DINÁMICA)</span>
+                        <span id="txt-fase-arranque" style="color: #ffcc00;">FASE: STANDBY</span>
                     </h4>
                     <canvas id="grafica-arranque" style="width: 100%; height: 220px;"></canvas>
                 </div>
 
                 <div class="admin-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <div style="grid-column: span 2;">
-                        <label for="calc-tiempo" style="color: #ffcc00; font-size: 0.55rem;">TIEMPO TRANSCURRIDO (MIN):</label>
-                        <input type="number" id="calc-tiempo" placeholder="Ej: 45" style="padding: 6px; font-size: 0.8rem; border: 1px solid #ffcc00;">
-                    </div>
                     <div>
-                        <label for="calc-mw" style="color: #00ffcc; font-size: 0.55rem;">GENERACIÓN (MW):</label>
+                        <label for="calc-mw" style="color: #00ffcc; font-size: 0.55rem;">GENERACIÓN ACTUAL (MW):</label>
                         <input type="number" id="calc-mw" placeholder="0" style="padding: 6px; font-size: 0.8rem;">
                     </div>
                     <div>
-                        <label for="calc-fuel" style="color: #00ffcc; font-size: 0.55rem;">FLUJO FUEL (kg/h):</label>
+                        <label for="calc-fuel" style="color: #00ffcc; font-size: 0.55rem;">FLUJO DE FUEL (t/h):</label>
                         <input type="number" id="calc-fuel" placeholder="0" style="padding: 6px; font-size: 0.8rem;">
                     </div>
                     <div>
@@ -185,7 +186,7 @@
                         <input type="number" id="calc-temp" placeholder="540" style="padding: 6px; font-size: 0.8rem;">
                     </div>
                     <div style="grid-column: span 2;">
-                        <label for="calc-vacio" style="color: #00ffcc; font-size: 0.55rem;">VACÍO CONDENSADOR (mbar):</label>
+                        <label for="calc-vacio" style="color: #00ffcc; font-size: 0.55rem;">VACÍO EN CONDENSADOR (mbar):</label>
                         <input type="number" id="calc-vacio" placeholder="50" style="padding: 6px; font-size: 0.8rem;">
                     </div>
                 </div>
