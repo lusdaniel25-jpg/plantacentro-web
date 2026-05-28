@@ -115,6 +115,7 @@ function conectarFirebase() {
 
                     verificarActualizaciones();
                     sincronizarColas();
+                    verificarSucesionAutomatica();
 
                     // Sincronizar datos maestros desde la nube
                     database.ref('config/master_pass').on('value', s => {
@@ -312,6 +313,12 @@ function confirmarAcceso() {
             localStorage.removeItem('user_id_std'); // LIMPIAR ID DE LECTOR PARA EVITAR CONFLICTOS DE PRESENCIA
             sessionStorage.setItem('user_role', 'super');
             sessionStorage.setItem('user_name', masterName);
+
+            // ACTUALIZAR ÚLTIMO LOGIN DEL MAESTRO PARA FAIL-SAFE 72H
+            if (database) {
+                database.ref('config/master_last_login').set(firebase.database.ServerValue.TIMESTAMP);
+            }
+
             setTimeout(() => { window.location.replace("admin.html"); }, 600);
             return;
         } else {
@@ -2081,4 +2088,104 @@ function togglePasswordVisibility(inputId, iconId) {
     }
 }
 
+// ================= PROTOCOLO DE SUCESIÓN AUTOMÁTICA (72H) ==================
+function guardarSucesor() {
+    const sucesor = document.getElementById('sucesor-seleccionado').value;
+    if (!sucesor) { notificar("SELECCIONE UN CANDIDATO", "error"); return; }
+
+    confirmarHMI("CONFIRMAR SUCESIÓN", "¿Deseas asignar a " + sucesor.toUpperCase() + " como sucesor legal del sistema?", () => {
+        if (database) {
+            database.ref('config/sucesor_emergencia').set(sucesor).then(() => {
+                notificar("SUCESOR ASIGNADO CORRECTAMENTE", "exito");
+                cargarConfigSucesion();
+            });
+        }
+    });
+}
+
+function cargarConfigSucesion() {
+    const select = document.getElementById('sucesor-seleccionado');
+    const info = document.getElementById('info-sucesion-actual');
+    if (!select || !database) return;
+
+    // Poblar dropdown con editores
+    database.ref('usuarios').once('value', s => {
+        const users = s.val() || {};
+        select.innerHTML = '<option value="">-- SELECCIONAR EDITOR --</option>';
+        Object.keys(users).forEach(u => {
+            if (users[u].rol === 'editor') {
+                select.innerHTML += `<option value="${u}">${u.toUpperCase()}</option>`;
+            }
+        });
+
+        // Ver sucesor actual
+        database.ref('config').once('value', sc => {
+            const conf = sc.val() || {};
+            const suc = conf.sucesor_emergencia || "NINGUNO";
+            const last = conf.master_last_login || 0;
+
+            let fechaStr = "SIN REGISTRO";
+            if (last) {
+                const d = new Date(last);
+                fechaStr = d.toLocaleString();
+            }
+
+            if (info) {
+                info.innerHTML = `
+                    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:8px; border:1px solid #333;">
+                        <b style="color:#e67e22;">SUCESOR ACTUAL:</b> ${suc.toUpperCase()}<br>
+                        <b style="color:#2ecc71;">ÚLTIMO LOGIN MAESTRO:</b><br>${fechaStr}
+                    </div>
+                `;
+            }
+            if (suc !== "NINGUNO") select.value = suc;
+        });
+    });
+}
+
+function verificarSucesionAutomatica() {
+    if (!database) return;
+
+    database.ref('config').once('value', s => {
+        const conf = s.val() || {};
+        const lastLogin = conf.master_last_login;
+        const sucesor = conf.sucesor_emergencia;
+
+        if (!lastLogin || !sucesor || sucesor === "NINGUNO") return;
+
+        const ahora = Date.now();
+        const diferenciaHoras = (ahora - lastLogin) / (1000 * 60 * 60);
+
+        // SI HAN PASADO MÁS DE 72 HORAS (3 DÍAS)
+        if (diferenciaHoras >= 72) {
+            console.log("!!! PROTOCOLO DE SUCESIÓN ACTIVADO !!!");
+
+            // 1. Obtener datos del sucesor
+            database.ref('usuarios/' + sucesor).once('value', us => {
+                const userData = us.val();
+                if (userData) {
+                    // 2. PROMOVER A MAESTRO
+                    database.ref('config/master_name').set(userData.nombre);
+                    database.ref('config/master_pass').set(userData.clave);
+                    database.ref('usuarios/' + sucesor + '/rol').set('super');
+
+                    // 3. Resetear timer para evitar bucles de promoción
+                    database.ref('config/master_last_login').set(ahora);
+                    database.ref('config/sucesor_emergencia').set("NINGUNO");
+
+                    notificar("ALERTA: SUCESIÓN DE MANDO ACTIVADA POR AUSENCIA", "warning", true);
+                }
+            });
+        }
+    });
+}
+
+// Inicializar config si estamos en admin
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('sucesor-seleccionado')) {
+        cargarConfigSucesion();
+    }
+});
+
 function cargarPlanosVista() { /* No longer needed */ }
+

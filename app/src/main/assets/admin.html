@@ -257,6 +257,33 @@
                 </div>
             </div>
 
+            <!-- SUCESIÓN DE MANDO (FAIL-SAFE 72H) -->
+            <button class="accordion-admin" style="border-color:#e67e22; color:#e67e22;" onclick="toggleAccordion(this)">
+                <span><i class="fas fa-crown"></i> SUCESIÓN DE MANDO (FAIL-SAFE)</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="panel-admin">
+                <div class="admin-form" style="background: rgba(230, 126, 34, 0.05); border: 1px solid rgba(230, 126, 34, 0.2); padding: 15px; border-radius: 12px;">
+                    <p style="font-size: 0.75rem; color: #e67e22; font-weight: bold; margin-bottom: 15px;">
+                        <i class="fas fa-exclamation-triangle"></i> PROTOCOLO DE EMERGENCIA:<br>
+                        Si el Maestro actual no inicia sesión en 72 horas, el sistema promoverá automáticamente al sucesor elegido.
+                    </p>
+
+                    <label for="sucesor-seleccionado">ELEGIR SUCESOR (CANDIDATO):</label>
+                    <select id="sucesor-seleccionado" style="margin-bottom:15px; background: #1a1a1a; color: white; border: 1px solid #e67e22; padding: 10px; border-radius: 8px;">
+                        <option value="">-- SELECCIONAR EDITOR --</option>
+                    </select>
+
+                    <button class="btn-guardar-admin" style="background: #e67e22; color: white;" onclick="guardarSucesor()">
+                        <i class="fas fa-save"></i> CONFIRMAR SUCESOR
+                    </button>
+
+                    <div id="info-sucesion-actual" style="margin-top: 20px; font-size: 0.7rem; color: #aaa; text-align: center; border-top: 1px solid #333; padding-top: 15px;">
+                        <!-- Información de sucesor actual y último login -->
+                    </div>
+                </div>
+            </div>
+
             <!-- REGISTRO MANUAL -->
             <button class="accordion-admin" style="border-color:#27ae60; color:#2ecc71;" onclick="toggleAccordion(this)">
                 <span><i class="fas fa-id-card"></i> REGISTRO MANUAL PERSONAL</span>
