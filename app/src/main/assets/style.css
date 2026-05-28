@@ -2,6 +2,17 @@
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+    /* Protección básica para Navegador Web */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Evitar visualización al imprimir (PDF o Papel) */
+@media print {
+    body { display: none !important; }
 }
 
 body {

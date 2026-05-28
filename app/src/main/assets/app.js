@@ -10,6 +10,17 @@ const VERSION_APP = 1.1;
     if (!esBienvenida && !sesion) {
         window.location.replace("bienvenida.html");
     }
+
+    // BLOQUEO DE CLIC DERECHO E INSPECCIÓN EN NAVEGADOR
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || e.keyCode === 123) {
+            e.preventDefault();
+            notificar("CAPTURA BLOQUEADA POR SEGURIDAD INDUSTRIAL", "error");
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) e.preventDefault();
+        if (e.ctrlKey && e.key === 'U') e.preventDefault();
+    });
 })();
 
 // --- SHIM DE COMPATIBILIDAD NAVEGADOR/PC ---
