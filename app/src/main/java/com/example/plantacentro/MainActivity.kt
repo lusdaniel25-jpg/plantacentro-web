@@ -364,20 +364,21 @@ class MainActivity : AppCompatActivity() {
                 val pureBase64 = base64.substringAfter(",")
                 val fileBytes = Base64.decode(pureBase64, Base64.DEFAULT)
                 
-                // Guardamos en el directorio público de descargas para que sea accesible
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                // Usamos el directorio de descargas privado de la app para evitar problemas de permisos en Android 10+
+                val downloadsDir = mContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                 val filePath = File(downloadsDir, fileName)
                 
                 FileOutputStream(filePath).use { fos ->
                     fos.write(fileBytes)
                 }
                 
-                Toast.makeText(mContext, "Archivo guardado y abriendo...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(mContext, "Archivo listo. Abriendo...", Toast.LENGTH_SHORT).show()
 
                 // Lógica para abrir el archivo automáticamente
                 val uri = FileProvider.getUriForFile(mContext, "${mContext.packageName}.fileprovider", filePath)
                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, mContext.contentResolver.getType(uri) ?: getMimeType(fileName))
+                    val mimeType = getMimeType(fileName)
+                    setDataAndType(uri, mimeType)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
@@ -389,16 +390,21 @@ class MainActivity : AppCompatActivity() {
                 )
 
             } catch (e: Exception) {
-                Toast.makeText(mContext, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(mContext, "Error al abrir documento: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
 
-        private fun getMimeType(url: String): String {
-            return when {
-                url.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
-                url.endsWith(".docx", ignoreCase = true) || url.endsWith(".doc", ignoreCase = true) -> "application/msword"
-                url.endsWith(".xlsx", ignoreCase = true) || url.endsWith(".xls", ignoreCase = true) -> "application/vnd.ms-excel"
-                else -> "*/*"
+        private fun getMimeType(fileName: String): String {
+            val extension = fileName.substringAfterLast(".", "").lowercase()
+            return when (extension) {
+                "pdf" -> "application/pdf"
+                "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                "doc" -> "application/msword"
+                "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "xls" -> "application/vnd.ms-excel"
+                "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                "ppt" -> "application/vnd.ms-powerpoint"
+                else -> android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
             }
         }
     }

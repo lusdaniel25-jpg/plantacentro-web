@@ -6,16 +6,21 @@
 
 body {
     margin: 0; padding: 0;
-    /* Optimización: Se recomienda usar .webp para reducir peso hasta un 80% */
-    background: url('IMG_20260425_100818.webp') no-repeat center center;
-    background-size: cover; font-family: 'Segoe UI', sans-serif; color: white;
-    background-attachment: scroll; /* Cambiado de fixed para mejor compatibilidad móvil */
+    font-family: 'Segoe UI', sans-serif; color: white;
+    background-color: #000;
+    min-height: 100vh;
 }
 
-/* Fondo fijo alternativo para móviles */
+/* Fondo fijo profesional: Asegura que la imagen siempre esté completa y cubra toda la pantalla */
 body::before {
-    content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85); z-index: -1;
+    content: "";
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
+                url('IMG_20260425_100818.webp') no-repeat center center;
+    background-size: cover;
+    z-index: -1;
 }
 
 /* CABECERA PRINCIPAL */

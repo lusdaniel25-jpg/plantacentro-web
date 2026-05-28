@@ -70,12 +70,15 @@
 
 
         <!-- MANUAL DE FUNCIONES DEL ÁREA -->
-        <div id="contenedor-manual-area" style="display:none; margin-top: 25px; background: rgba(255, 204, 0, 0.05); padding: 18px; border-radius: 12px; border: 1px solid rgba(255, 204, 0, 0.2); box-shadow: inset 0 0 15px rgba(255, 204, 0, 0.05);">
-            <h3 style="color: #ffcc00; font-size: 0.95rem; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255, 204, 0, 0.2); padding-bottom: 8px;">
-                <i class="fas fa-file-contract"></i> MANUAL DE FUNCIONES Y DEBERES
-            </h3>
-            <div id="texto-manual-area" style="font-size: 0.8rem; line-height: 1.6; color: #eee; white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-                <!-- Se llena dinámicamente -->
+        <div id="contenedor-manual-area" style="display:none; margin-top: 25px;">
+            <button class="accordion-admin" style="border-color:#ffcc00; color:#ffcc00; background: rgba(255, 204, 0, 0.05);" onclick="this.classList.toggle('active'); this.nextElementSibling.classList.toggle('active')">
+                <span><i class="fas fa-file-contract"></i> MANUAL DE FUNCIONES Y DEBERES</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div id="panel-manual-area" class="panel-admin" style="background: rgba(255, 204, 0, 0.02); border: 1px solid rgba(255, 204, 0, 0.1); border-top: none; border-radius: 0 0 12px 12px;">
+                <div id="texto-manual-area" style="font-size: 0.8rem; line-height: 1.6; color: #eee; white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 10px;">
+                    <!-- Se llena dinámicamente -->
+                </div>
             </div>
         </div>
 
@@ -99,8 +102,7 @@
             <div id="contador-resultados" style="font-size: 0.7rem; color: #ffcc00; margin-top: 5px; margin-left: 15px; font-weight: bold; text-transform: uppercase;"></div>
         </div>
 
-        <div class="mapa-interactivo" id="mapa-equipos">
-            <p class="mensaje">Seleccione un sistema para inspeccionar ...</p>
+        <div class="mapa-interactivo" id="mapa-equipos" style="display: none;">
         </div>
 
 

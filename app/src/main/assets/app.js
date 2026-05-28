@@ -448,7 +448,9 @@ function guardarParametrosOperacion() {
 // ================= GESTIÓN DE SISTEMAS Y OFFLINE ==================
 function filtrarSistema(sistema) {
     const contenedor = document.getElementById('mapa-equipos'); if (!contenedor) return;
+    contenedor.style.display = 'flex';
     const grid = document.querySelector('.sistemas-grid'); if(grid) grid.style.display = 'none';
+    const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = 'none';
     conectarFirebase();
     const btnHome = document.querySelector('.btn-home');
     if (btnHome) { btnHome.innerHTML = '<i class="fas fa-chevron-left"></i> VOLVER'; btnHome.onclick = () => { window.location.reload(); }; }
@@ -572,9 +574,31 @@ function cargarPlanosDelArea(area) {
 }
 
 function cargarManualDelArea(area) {
-    const cont = document.getElementById('contenedor-manual-area'); const texto = document.getElementById('texto-manual-area'); if(!cont || !texto) return;
-    const cache = JSON.parse(localStorage.getItem('manuales_areas') || "{}"); if(cache[area]) { texto.innerText = cache[area]; cont.style.display = 'block'; }
-    if(database) database.ref('manuales_areas/'+area).on('value', s => { if(s.val()) { texto.innerText = s.val(); cont.style.display = 'block'; } });
+    const cont = document.getElementById('contenedor-manual-area');
+    const texto = document.getElementById('texto-manual-area');
+    const panel = document.getElementById('panel-manual-area');
+    const btn = cont ? cont.querySelector('.accordion-admin') : null;
+
+    if(!cont || !texto) return;
+
+    // Resetear estado colapsado al cambiar de área
+    if(panel) panel.classList.remove('active');
+    if(btn) btn.classList.remove('active');
+
+    const cache = JSON.parse(localStorage.getItem('manuales_areas') || "{}");
+    if(cache[area]) {
+        texto.innerText = cache[area];
+        cont.style.display = 'block';
+    }
+
+    if(database) {
+        database.ref('manuales_areas/'+area).on('value', s => {
+            if(s.val()) {
+                texto.innerText = s.val();
+                cont.style.display = 'block';
+            }
+        });
+    }
 }
 
 function cargarDocsDelArea(area) {
@@ -597,7 +621,7 @@ function cargarDocsDelArea(area) {
                         ${d.autor ? `<br><small style="color:#aaa; font-size:0.65rem;">SUBIDO POR: ${d.autor.toUpperCase()}</small>` : ''}
                         ${d.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${d.fecha})</small>` : ''}
                     </div>
-                    <button onclick="descargarDocumento('${d.archivo}', '${d.titulo}')">ABRIR</button>
+                    <button onclick="descargarDocumento('${d.archivo}', '${d.titulo}.${d.extension || 'pdf'}')">ABRIR</button>
                 </div>`;
         });
         cont.style.display = Object.keys(combinados).length > 0 ? 'block' : 'none';
@@ -2040,4 +2064,21 @@ function escucharEstadoSolicitud(id) {
         }
     });
 }
+
+function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (input && icon) {
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
+}
+
 function cargarPlanosVista() { /* No longer needed */ }
