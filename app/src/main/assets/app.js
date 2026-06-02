@@ -60,92 +60,70 @@ const LINK_DESCARGA_APK = "https://t.me/unidad6";
 
 let database;
 let listenerConexionActivo = false;
+let listenersGlobalesActivos = false; // Nueva bandera para evitar duplicados de listeners
 let notificacionConexionMostrada = false;
 let notificacionOfflineMostrada = false;
-let areaSeleccionadaPaso = "";
-let equiposActuales = [];
-let fotosBase64 = [];
-let tagOriginalEdicion = null;
-let areaOriginalEdicion = null;
+let syncing = false; // Flag para evitar procesos de sincronización simultáneos
+let historialNotificaciones = new Map(); // Para evitar spam de la misma notificación
 
 function conectarFirebase() {
     if (typeof firebase !== 'undefined') {
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
-            // Habilitar persistencia offline nativa de Firebase
             firebase.database().goOnline();
         }
         database = firebase.database();
+
         if (!listenerConexionActivo) {
             database.ref('.info/connected').on('value', (snap) => {
-                if (snap.val() === true) {
+                const isConnected = snap.val() === true;
+
+                document.querySelectorAll('.online-indicator').forEach(el => {
+                    el.classList.toggle('status-online', isConnected);
+                    el.classList.toggle('status-offline', !isConnected);
+                    el.title = isConnected ? "SISTEMA EN LÍNEA" : "SISTEMA SIN CONEXIÓN";
+                });
+
+                if (isConnected) {
                     const role = sessionStorage.getItem('user_role') || 'LECTURA';
                     const user = sessionStorage.getItem('user_name') || 'Invitado';
 
-                    if ((sessionStorage.getItem('user_role') || sessionStorage.getItem('user_name')) && !notificacionConexionMostrada) {
+                    if (!notificacionConexionMostrada && (role !== 'LECTURA' || user !== 'Invitado')) {
                         notificacionConexionMostrada = true;
                         notificacionOfflineMostrada = false;
+                        notificar("CONEXIÓN RESTABLECIDA - SINCRONIZANDO DATOS", "exito");
                     }
 
-                    // Actualizar indicadores visuales globales
-                    document.querySelectorAll('.online-indicator').forEach(el => {
-                        el.classList.remove('status-offline');
-                        el.classList.add('status-online');
-                        el.title = "SISTEMA EN LÍNEA";
-                    });
-
-                    // RASTREO DE PRESENCIA CON ÚLTIMA CONEXIÓN (MAESTROS Y ESTÁNDAR)
+                    // RASTREO DE PRESENCIA (Solo si hay usuario)
                     if (user !== 'Invitado') {
-                        const role = sessionStorage.getItem('user_role');
-                        let idRastreo = "";
-
-                        if (role === 'super' || role === 'editor') {
-                            idRastreo = user.toLowerCase().trim();
-                        } else {
-                            const savedId = localStorage.getItem('user_id_std');
-                            idRastreo = (savedId || user).toLowerCase().trim();
-                        }
-
-                        // Sanitizar ID para Firebase (Evitar caracteres prohibidos: . $ # [ ] /)
-                        idRastreo = idRastreo.replace(/[\.\$#\[\]\/]/g, "_");
+                        const savedId = localStorage.getItem('user_id_std');
+                        let idRastreo = (role === 'super' || role === 'editor') ? user : (savedId || user);
+                        idRastreo = idRastreo.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
 
                         if (idRastreo) {
                             const presenceRef = database.ref('presencia/' + idRastreo);
                             presenceRef.onDisconnect().cancel();
-                            presenceRef.update({
-                                estado: 'online',
-                                ultima: firebase.database.ServerValue.TIMESTAMP
-                            }).catch(e => console.error("Error presencia:", e));
-
-                            presenceRef.onDisconnect().update({
-                                estado: 'offline',
-                                ultima: firebase.database.ServerValue.TIMESTAMP
-                            });
+                            presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
+                            presenceRef.onDisconnect().update({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
                         }
                     }
 
-                    verificarActualizaciones();
+                    // Iniciar procesos de red solo una vez o cuando sea necesario
                     sincronizarColas();
                     verificarSucesionAutomatica();
 
-                    // Sincronizar datos maestros desde la nube
-                    database.ref('config/master_pass').on('value', s => {
-                        if(s.val()) localStorage.setItem('master_pass', s.val());
-                    });
-                    database.ref('config/master_name').on('value', s => {
-                        if(s.val()) localStorage.setItem('master_name', s.val());
-                    });
+                    if (!listenersGlobalesActivos) {
+                        verificarActualizaciones();
+                        // Sincronizar datos maestros
+                        database.ref('config/master_pass').on('value', s => s.val() && localStorage.setItem('master_pass', s.val()));
+                        database.ref('config/master_name').on('value', s => s.val() && localStorage.setItem('master_name', s.val()));
+                        listenersGlobalesActivos = true;
+                    }
                 } else {
-                    // Actualizar indicadores visuales globales
-                    document.querySelectorAll('.online-indicator').forEach(el => {
-                        el.classList.remove('status-online');
-                        el.classList.add('status-offline');
-                        el.title = "SISTEMA SIN CONEXIÓN";
-                    });
-
                     if (!navigator.onLine && !notificacionOfflineMostrada) {
                         notificacionOfflineMostrada = true;
-                        notificacionConexionMostrada = false; // Resetear para que avise al volver
+                        notificacionConexionMostrada = false;
+                        notificar("TRABAJANDO EN MODO OFFLINE", "warning");
                     }
                 }
             });
@@ -155,85 +133,96 @@ function conectarFirebase() {
 }
 
 function sincronizarColas() {
-    if (!database || !navigator.onLine) return;
+    if (!database || !navigator.onLine || syncing) return;
+    syncing = true;
 
-    let colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
-    let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+    const colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
+    const colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
+    const colaPlEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
+    const colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
+    const colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
+    const colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
 
-    // 1. PROCESAR ELIMINACIONES
+    const totalPendiente = colaEnv.length + colaDel.length + colaPlEnv.length + colaPlDel.length + colaDocEnv.length + colaDocDel.length;
+    if (totalPendiente === 0) { syncing = false; return; }
+
+    const promesas = [];
+
+    // 1. PROCESAR EQUIPOS
     colaDel.forEach(q => {
         const sTag = q.tag.replace(/[\.\$#\[\]\/]/g, "_");
-        database.ref('equipos/' + q.area + '/' + sTag).remove().then(() => {
+        promesas.push(database.ref('equipos/' + q.area + '/' + sTag).remove().then(() => {
             let actualDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
             actualDel = actualDel.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_eliminaciones', JSON.stringify(actualDel));
-            if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
-        }).catch(e => console.error("Error sync delete:", e));
+            registrarLog(`ELIMINÓ EQUIPO: ${q.tag} (${q.area.toUpperCase()})`);
+        }));
     });
 
-    // 2. PROCESAR ENVÍOS
     colaEnv.forEach(q => {
         const sTag = q.tag.replace(/[\.\$#\[\]\/]/g, "_");
-        database.ref('equipos/' + q.area + '/' + sTag).set(q).then(() => {
+        promesas.push(database.ref('equipos/' + q.area + '/' + sTag).set(q).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_envios') || "[]");
             actual = actual.filter(i => !(i.tag === q.tag && i.area === q.area));
             localStorage.setItem('cola_envios', JSON.stringify(actual));
-            notificar("REGISTRO SINCRONIZADO: " + q.tag);
-            if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
-            registrarLog("SINCRONIZÓ EQUIPO: " + q.tag + " (" + q.area.toUpperCase() + ")");
-        }).catch(e => {
-            console.error("Error sync upload:", e);
-            if(e.message && e.message.includes("large")) notificar("ERROR: IMAGEN MUY GRANDE PARA LA NUBE", "error");
-            else notificar("ERROR AL SINCRONIZAR " + q.tag, "error");
-        });
+            registrarLog(`EDITÓ/GUARDÓ EQUIPO: ${q.tag} (${q.area.toUpperCase()})`);
+        }));
     });
 
-    // Sincronizar Planos
-    let colaPlEnv = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
-    let colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
-
+    // 2. PROCESAR PLANOS
     colaPlEnv.forEach(q => {
-        database.ref('planos/' + q.area + '/' + q.id).set(q.data).then(() => {
+        promesas.push(database.ref('planos/' + q.area + '/' + q.id).set(q.data).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_planos_envios') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_envios', JSON.stringify(actual));
-            if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
-        }).catch(e => console.error("Error sync plano:", e));
+            registrarLog(`SUBIÓ PLANO: ${q.data.titulo} (${q.area.toUpperCase()})`);
+        }));
     });
 
     colaPlDel.forEach(q => {
-        database.ref('planos/' + q.area + '/' + q.id).remove().then(() => {
+        promesas.push(database.ref('planos/' + q.area + '/' + q.id).remove().then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_planos_del', JSON.stringify(actual));
-            if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
-        }).catch(e => console.error("Error sync del plano:", e));
+            registrarLog(`ELIMINÓ PLANO EN: ${q.area.toUpperCase()}`);
+        }));
     });
 
-    // Sincronizar Documentos
-    let colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
-    let colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
-
+    // 3. PROCESAR DOCUMENTOS
     colaDocEnv.forEach(q => {
-        database.ref('documentos/' + q.area + '/' + q.id).set(q.data).then(() => {
+        promesas.push(database.ref('documentos/' + q.area + '/' + q.id).set(q.data).then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_envios', JSON.stringify(actual));
-            if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
-        }).catch(e => console.error("Error sync doc:", e));
+            registrarLog(`SUBIÓ DOCUMENTO: ${q.data.titulo} (${q.area.toUpperCase()})`);
+        }));
     });
 
     colaDocDel.forEach(q => {
-        database.ref('documentos/' + q.area + '/' + q.id).remove().then(() => {
+        promesas.push(database.ref('documentos/' + q.area + '/' + q.id).remove().then(() => {
             let actual = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
             actual = actual.filter(i => i.id !== q.id);
             localStorage.setItem('cola_docs_del', JSON.stringify(actual));
-            if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
-        }).catch(e => console.error("Error sync del doc:", e));
+            registrarLog(`ELIMINÓ DOCUMENTO EN: ${q.area.toUpperCase()}`);
+        }));
+    });
+
+    Promise.allSettled(promesas).then(() => {
+        syncing = false;
+        notificar("DATOS SINCRONIZADOS CORRECTAMENTE", "exito");
+        if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
+        if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
+        if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
     });
 }
 
-conectarFirebase();
+// conectarFirebase(); <-- Eliminado para evitar doble ejecución
+
+let areaSeleccionadaPaso = "";
+let equiposActuales = [];
+let fotosBase64 = [];
+let tagOriginalEdicion = null;
+let areaOriginalEdicion = null;
 
 const DATOS_PLANTA = { "auxiliares": [], "turbina": [], "ciclo": [], "caldera": [], "calderas_auxiliares": [], "externas": [], "instrumentacion": [], "contra_incendio": [], "electricista": [], "protecciones": [] };
 
@@ -1358,13 +1347,28 @@ function publicarNuevaVersion() {
 // ================= UTILIDADES ==================
 function notificar(msj, tipo = 'exito', emergente = false) {
     const msjUpper = msj.toUpperCase();
+    const ahora = Date.now();
+
+    // 1. EVITAR DUPLICADOS Y SPAM (Anti-rebote de 2 segundos para el mismo mensaje)
+    if (historialNotificaciones.has(msjUpper)) {
+        if (ahora - historialNotificaciones.get(msjUpper) < 2000) return;
+    }
+    historialNotificaciones.set(msjUpper, ahora);
+
+    // 2. EVITAR QUE SE MEZCLEN (Verificar si ya está en pantalla para no repetir)
+    const existentes = document.querySelectorAll('.toast-modern span');
+    for (let a of existentes) { if (a.innerText === msjUpper) return; }
+
+    // Limpieza periódica del historial para evitar consumo de memoria
+    if (historialNotificaciones.size > 50) {
+        const limit = Date.now() - 10000;
+        historialNotificaciones.forEach((v, k) => { if (v < limit) historialNotificaciones.delete(k); });
+    }
 
     if (emergente && typeof Android !== "undefined" && Android.showNativeNotification) {
         Android.showNativeNotification("HMI PLANTA CENTRO U6", msjUpper);
     }
 
-    const existentes = document.querySelectorAll('.toast-modern span');
-    for (let a of existentes) { if (a.innerText === msjUpper) return; }
     let container = document.querySelector('.toast-container');
     if (!container) {
         container = document.createElement('div');
