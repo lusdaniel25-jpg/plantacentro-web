@@ -1,5 +1,5 @@
 // Configuración de Firebase - Planta Centro Unidad 6
-const VERSION_APP = 1.1;
+const VERSION_APP = 1.2;
 
 // --- SEGURIDAD DE FLUJO INICIAL (INSTANTÁNEA) ---
 (function() {
@@ -1510,7 +1510,8 @@ function verificarActualizaciones() {
         database.ref('config/version').on('value', (s) => {
             const btn = document.getElementById('btn-descargar-bienvenida');
             if(btn) {
-                if (parseFloat(s.val()) > VERSION_APP) {
+                // Solo mostrar el botón si estamos en Android y hay versión superior
+                if (typeof Android !== "undefined" && parseFloat(s.val()) > VERSION_APP) {
                     btn.style.display = 'inline-flex';
                 } else {
                     btn.style.display = 'none';
