@@ -1,5 +1,5 @@
 // Configuración de Firebase - Planta Centro Unidad 6
-const VERSION_APP = 1.2;
+const VERSION_APP = 1.3;
 
 // --- SEGURIDAD DE FLUJO INICIAL (INSTANTÁNEA) ---
 (function() {
@@ -20,6 +20,17 @@ const VERSION_APP = 1.2;
         }
         if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) e.preventDefault();
         if (e.ctrlKey && e.key === 'U') e.preventDefault();
+    });
+
+    // PROTECCIÓN EXTRA PARA NAVEGADORES MÓVILES (DESENFOQUE AL SALIR)
+    window.addEventListener('blur', () => {
+        if (typeof Android === "undefined") {
+            document.body.style.filter = "blur(20px)";
+            document.body.style.transition = "filter 0.3s ease";
+        }
+    });
+    window.addEventListener('focus', () => {
+        document.body.style.filter = "none";
     });
 })();
 
@@ -1596,10 +1607,19 @@ function verificarActualizaciones() {
         database.ref('config/version').on('value', (s) => {
             const btn = document.getElementById('btn-descargar-bienvenida');
             if(btn) {
-                // Solo mostrar el botón si estamos en Android y hay versión superior
-                if (typeof Android !== "undefined" && parseFloat(s.val()) > VERSION_APP) {
+                const versionNube = parseFloat(s.val());
+                // Caso 1: Estamos en el Navegador (Android no definido)
+                if (typeof Android === "undefined") {
                     btn.style.display = 'inline-flex';
-                } else {
+                    btn.innerHTML = '<i class="fas fa-shield-alt"></i> INSTALAR APP SEGURA';
+                    btn.style.background = "#2ecc71";
+                }
+                // Caso 2: Estamos en la App y hay una versión superior
+                else if (versionNube > VERSION_APP) {
+                    btn.style.display = 'inline-flex';
+                    btn.innerHTML = '<i class="fas fa-download"></i> ACTUALIZAR AHORA';
+                }
+                else {
                     btn.style.display = 'none';
                 }
             }
