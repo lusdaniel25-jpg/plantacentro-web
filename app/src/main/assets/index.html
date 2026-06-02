@@ -25,12 +25,13 @@
     </header>
 
     <main class="hmi-container">
-        <!-- BOTÓN ESPECIAL OPERACIÓN (MOVIDO ARRIBA) -->
+        <!-- BOTÓN ESPECIAL OPERACIÓN -->
         <div id="card-operacion-especial" class="sistema-card" onclick="abrirSeccionOperacion()" style="display: none; border-color: #00ffcc; background: rgba(0, 255, 204, 0.1); margin-bottom: 20px; padding: 25px; align-items: center; justify-content: center; gap: 20px;">
             <i class="fas fa-microchip" style="color: #00ffcc; font-size: 2rem;"></i>
             <h3 style="color: #00ffcc; margin: 0; font-size: 1.2rem; letter-spacing: 2px;">OPERADOR DE BANCO - U6</h3>
         </div>
 
+        <!-- GRILLA PRINCIPAL DE SISTEMAS -->
         <div class="sistemas-grid">
             <div class="sistema-card" onclick="filtrarSistema('auxiliares')">
                 <i class="fas fa-water"></i>
@@ -60,14 +61,30 @@
                 <i class="fas fa-microchip"></i>
                 <h3>INSTRUMENTACIÓN</h3>
             </div>
+            <div class="sistema-card" onclick="filtrarSistema('electricista')">
+                <i class="fas fa-bolt"></i>
+                <h3>ELECTRICISTA Y PROTECCIONES</h3>
+            </div>
             <div class="sistema-card" onclick="filtrarSistema('contra_incendio')">
                 <i class="fas fa-fire-extinguisher"></i>
                 <h3>SIST. CONTRA INCENDIO</h3>
             </div>
         </div>
 
-        <!-- El botón estaba aquí antes -->
-
+        <!-- SUBMENÚ EXCLUSIVO ELECTRICISTA Y PROTECCIONES -->
+        <div id="submenu-electrica" style="display: none; flex-direction: column; gap: 15px; margin-top: 10px;">
+            <h2 style="color: #ffcc00; font-size: 1rem; text-align: center; border-bottom: 2px solid #ffcc00; padding-bottom: 10px; margin-bottom: 10px;">SECCIONES DE ÁREA ELÉCTRICA</h2>
+            <div class="sistemas-grid" style="grid-template-columns: 1fr 1fr; display: grid;">
+                <div class="sistema-card" onclick="filtrarSistema('electricista', true)" style="border-color: #ffcc00; background: rgba(255, 204, 0, 0.05);">
+                    <i class="fas fa-plug"></i>
+                    <h3>OFICINA ELECTRICISTA</h3>
+                </div>
+                <div class="sistema-card" onclick="filtrarSistema('protecciones', true)" style="border-color: #ffcc00; background: rgba(255, 204, 0, 0.05);">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>OFICINA PROTECCIONES</h3>
+                </div>
+            </div>
+        </div>
 
         <!-- MANUAL DE FUNCIONES DEL ÁREA -->
         <div id="contenedor-manual-area" style="display:none; margin-top: 25px;">
@@ -102,7 +119,78 @@
             <div id="contador-resultados" style="font-size: 0.7rem; color: #ffcc00; margin-top: 5px; margin-left: 15px; font-weight: bold; text-transform: uppercase;"></div>
         </div>
 
+        <div id="btn-megado-protecciones" class="sistema-card" onclick="verSeccionMegados()" style="display: none; border-color: #00ccff; background: rgba(0, 204, 255, 0.05); padding: 25px; margin-bottom: 20px;">
+            <i class="fas fa-bolt" style="color: #00ccff;"></i>
+            <h3 style="color: #00ccff;">GESTIÓN DE MEGADOS Y SIMULADOR</h3>
+        </div>
+
         <div class="mapa-interactivo" id="mapa-equipos" style="display: none;">
+        </div>
+
+        <!-- SIMULADOR TÉCNICO DE MEGADO (SOLO ELECTRICISTA Y PROTECCIONES) -->
+        <div id="contenedor-simulador-megado" style="display:none; margin-top: 25px; background: rgba(0, 204, 255, 0.05); padding: 15px; border-radius: 15px; border: 1px solid rgba(0, 204, 255, 0.2);">
+            <h3 style="color: #00ccff; font-size: 1rem; margin: 0 0 15px 0; text-transform: uppercase; text-align: center;">
+                <i class="fas fa-microchip"></i> SIMULADOR DE AISLAMIENTO Y VIDA ÚTIL
+            </h3>
+
+            <!-- Gráfica de Estado -->
+            <div style="background: #000; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #222; text-align: center;">
+                <div id="gauge-megado" style="width: 100%; height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin-bottom: 10px;">
+                    <div id="gauge-bar" style="width: 0%; height: 100%; background: #00ffcc; transition: 0.5s;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: #888;">
+                    <span>CRÍTICO</span>
+                    <span>ADCEPTABLE</span>
+                    <span>ÓPTIMO</span>
+                </div>
+                <div id="res-simulador-valor" style="font-size: 1.5rem; font-weight: bold; color: #00ffcc; margin-top: 10px;">-- MΩ</div>
+                <div id="res-simulador-status" style="font-size: 0.75rem; color: #aaa; margin-top: 5px; text-transform: uppercase;">INGRESE PARÁMETROS</div>
+            </div>
+
+            <div class="admin-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label for="sim-voltaje" style="font-size: 0.55rem;">VOLTAJE MOTOR (V):</label>
+                    <input type="number" id="sim-voltaje" placeholder="480" oninput="calcularSaludMotor()">
+                </div>
+                <div>
+                    <label for="sim-resistencia" style="font-size: 0.55rem;">LECTURA (MΩ):</label>
+                    <input type="number" id="sim-resistencia" placeholder="500" oninput="calcularSaludMotor()">
+                </div>
+                <div>
+                    <label for="sim-temp" style="font-size: 0.55rem;">TEMP. DEVANADO (°C):</label>
+                    <input type="number" id="sim-temp" placeholder="40" oninput="calcularSaludMotor()">
+                </div>
+                <div>
+                    <label for="sim-horas" style="font-size: 0.55rem;">HORAS DE OPERACIÓN:</label>
+                    <input type="number" id="sim-horas" placeholder="10000" oninput="calcularSaludMotor()">
+                </div>
+            </div>
+
+            <!-- Diagnóstico Detallado -->
+            <div id="diagnostico-motor" style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 10px; font-size: 0.75rem; line-height: 1.4; display: none;">
+                <!-- Llenado dinámicamente -->
+            </div>
+
+            <button onclick="registrarMantenimientoSim()" class="btn-guardar-admin" style="background: #00ccff; color: black; margin-top: 15px; padding: 10px; font-size: 0.8rem;">
+                <i class="fas fa-file-medical"></i> REGISTRAR MANTENIMIENTO TÉCNICO
+            </button>
+        </div>
+
+        <!-- SECCIÓN DE MEGADOS (SOLO ELECTRICISTA Y PROTECCIONES) -->
+        <div id="contenedor-megados-area" style="display:none; margin-top: 25px; background: rgba(255, 204, 0, 0.05); padding: 15px; border-radius: 15px; border: 1px solid rgba(255, 204, 0, 0.2);">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255, 204, 0, 0.3); padding-bottom: 10px;">
+                <h3 style="color: #ffcc00; font-size: 1rem; margin: 0; text-transform: uppercase;">
+                    <i class="fas fa-bolt"></i> REGISTROS DE MEGADOS
+                </h3>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-nuevo-megado" onclick="abrirGestionMegados()" class="btn-admin-config" style="font-size: 0.7rem; padding: 5px 10px; background: #ffcc00; color: #000; border: none;">
+                        <i class="fas fa-plus-circle"></i> NUEVO REGISTRO
+                    </button>
+                </div>
+            </header>
+            <div id="lista-megados" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Se llena dinámicamente -->
+            </div>
         </div>
 
 
@@ -363,7 +451,42 @@
         </div>
     </div>
 
+    <!-- MODAL GESTIÓN MEGADOS -->
+    <div id="modal-gestion-megados" class="modal-hmi" style="display: none;">
+        <div class="modal-content admin-card-full" style="max-width: 400px; border-color: #ffcc00;">
+            <h2 style="color: #ffcc00; text-align: center;"><i class="fas fa-bolt"></i> REGISTRO TÉCNICO U6</h2>
+            <div class="admin-form">
+                <label for="mega-tag">TAG DEL EQUIPO:</label>
+                <input type="text" id="mega-tag" placeholder="Ej: 06GEN01">
+
+                <label for="mega-equipo" style="margin-top:10px;">NOMBRE DEL EQUIPO:</label>
+                <input type="text" id="mega-equipo" placeholder="Ej: Generador Principal">
+
+                <input type="hidden" id="mega-fecha">
+
+                <label for="mega-valor" style="margin-top:10px;">VALOR DE RESISTENCIA (MΩ):</label>
+                <input type="number" id="mega-valor" placeholder="Valor bloqueado" readonly style="background: rgba(255,255,255,0.02); color: #00ffcc; font-weight: bold; border-color: #444; cursor: not-allowed;">
+
+                <div id="wrapper-clave-megado" style="margin-top:15px;">
+                    <label for="mega-pass">CLAVE TÉCNICA (AUTORIZACIÓN):</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="mega-pass" placeholder="Ingrese su clave">
+                        <i class="fas fa-eye toggle-password" id="toggle-mega-pass" onclick="togglePasswordVisibility('mega-pass', 'toggle-mega-pass')"></i>
+                    </div>
+                </div>
+
+                <input type="hidden" id="mega-tecnico">
+
+                <button onclick="guardarMegado()" class="btn-guardar-admin" style="background: #ffcc00; color: black; margin-top: 25px;">
+                    <i class="fas fa-save"></i> GUARDAR EN HISTORIAL
+                </button>
+                <button onclick="document.getElementById('modal-gestion-megados').style.display='none'" style="background: transparent; color: #ff4444; border: none; width: 100%; margin-top: 15px; cursor: pointer; font-weight: bold;">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="app.js"></script>
 </body>

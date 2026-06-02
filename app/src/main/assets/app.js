@@ -235,7 +235,7 @@ function sincronizarColas() {
 
 conectarFirebase();
 
-const DATOS_PLANTA = { "auxiliares": [], "turbina": [], "ciclo": [], "caldera": [], "calderas_auxiliares": [], "externas": [], "instrumentacion": [], "contra_incendio": [] };
+const DATOS_PLANTA = { "auxiliares": [], "turbina": [], "ciclo": [], "caldera": [], "calderas_auxiliares": [], "externas": [], "instrumentacion": [], "contra_incendio": [], "electricista": [], "protecciones": [] };
 
 // ================= SEGURIDAD Y ACCESO ==================
 function validarAccesoArea(area) {
@@ -330,6 +330,16 @@ function confirmarAcceso() {
                 database.ref('config/master_last_login').set(firebase.database.ServerValue.TIMESTAMP);
             }
 
+            if (sessionStorage.getItem('intencion_megado')) {
+                sessionStorage.removeItem('intencion_megado');
+                notificar("IDENTIDAD CONFIRMADA");
+                cerrarLogin();
+                const area = sessionStorage.getItem('area_actual');
+                if(area) filtrarSistema(area);
+                document.getElementById('modal-gestion-megados').style.display = 'flex';
+                return;
+            }
+
             setTimeout(() => { window.location.replace("admin.html"); }, 600);
             return;
         } else {
@@ -357,6 +367,17 @@ function confirmarAcceso() {
                 localStorage.setItem('user_db', JSON.stringify(localUsers));
                 sessionStorage.setItem('user_role', d.rol);
                 sessionStorage.setItem('user_name', u);
+
+                if (sessionStorage.getItem('intencion_megado')) {
+                    sessionStorage.removeItem('intencion_megado');
+                    notificar("IDENTIDAD CONFIRMADA");
+                    cerrarLogin();
+                    const area = sessionStorage.getItem('area_actual');
+                    if(area) filtrarSistema(area);
+                    document.getElementById('modal-gestion-megados').style.display = 'flex';
+                    return;
+                }
+
                 window.location.replace("admin.html");
             }
             else notificar("DATOS INCORRECTOS", "error");
@@ -464,15 +485,51 @@ function guardarParametrosOperacion() {
 }
 
 // ================= GESTIÓN DE SISTEMAS Y OFFLINE ==================
-function filtrarSistema(sistema) {
+function filtrarSistema(sistema, esSubmenu = false) {
     const contenedor = document.getElementById('mapa-equipos'); if (!contenedor) return;
-    contenedor.style.display = 'flex';
-    const grid = document.querySelector('.sistemas-grid'); if(grid) grid.style.display = 'none';
-    const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = 'none';
+    const grid = document.querySelector('.sistemas-grid');
+    const submenu = document.getElementById('submenu-electrica');
+    const cardOp = document.getElementById('card-operacion-especial');
+
+    // Ocultar todo por defecto para limpiar pantalla
+    if(grid) grid.style.display = 'none';
+    if(cardOp) cardOp.style.display = 'none';
+    if(submenu) submenu.style.display = 'none';
+
+    document.getElementById('contenedor-megados-area').style.display = 'none';
+    document.getElementById('contenedor-simulador-megado').style.display = 'none';
+    document.getElementById('contenedor-manual-area').style.display = 'none';
+    document.getElementById('contenedor-planos-area').style.display = 'none';
+    document.getElementById('contenedor-buscador').style.display = 'none';
+    document.getElementById('contenedor-docs-area').style.display = 'none';
+
     conectarFirebase();
     const btnHome = document.querySelector('.btn-home');
-    if (btnHome) { btnHome.innerHTML = '<i class="fas fa-chevron-left"></i> VOLVER'; btnHome.onclick = () => { window.location.reload(); }; }
-    const busc = document.getElementById('contenedor-buscador'); if(busc) busc.style.display = 'block';
+    if (btnHome) {
+        btnHome.innerHTML = '<i class="fas fa-chevron-left"></i> VOLVER';
+        btnHome.onclick = () => {
+            sessionStorage.removeItem('area_actual');
+            localStorage.removeItem('area_actual');
+            window.location.reload();
+        };
+    }
+
+    // Lógica para ÁREA ELÉCTRICA (MENU PRINCIPAL)
+    if (sistema === 'electricista' && !esSubmenu) {
+        if (submenu) {
+            submenu.style.display = 'flex';
+            sessionStorage.setItem('area_actual', 'electricista');
+        }
+        return;
+    }
+
+    // Lógica para SUB-ÁREAS o ÁREAS NORMALES
+    if (contenedor) contenedor.style.display = 'flex';
+    const busc = document.getElementById('contenedor-buscador');
+    if (busc) busc.style.display = 'block';
+
+    const btnMegaProt = document.getElementById('btn-megado-protecciones');
+    if (btnMegaProt) btnMegaProt.style.display = (sistema === 'protecciones') ? 'block' : 'none';
 
     cargarPlanosDelArea(sistema); cargarManualDelArea(sistema); cargarDocsDelArea(sistema);
 
@@ -531,8 +588,13 @@ function filtrarSistema(sistema) {
 }
 
 function dibujarEquipos(equipos) {
-    const c = document.getElementById('mapa-equipos'); if(!c) return; c.innerHTML = "";
-    if (equipos.length === 0) { c.innerHTML = "<p class='mensaje'>Sin registros.</p>"; return; }
+    const c = document.getElementById('mapa-equipos'); if(!c) return;
+    c.innerHTML = "";
+    if (equipos.length === 0) {
+        c.style.display = "none"; // Evitar pantalla negra vacía
+        return;
+    }
+    c.style.display = "flex"; // Mostrar si hay equipos
     equipos.forEach(eq => { let n = document.createElement('div'); n.className = "equipo-nodo"; n.onclick = () => verFicha(eq); n.innerHTML = `<i class="fas ${eq.icono || 'fa-cog'} fa-2x"></i><br><span>${eq.nombre}</span>`; c.appendChild(n); });
 }
 
@@ -728,7 +790,7 @@ function procesarCarga() {
     if (!tag || !nombre) { notificar("TAG Y NOMBRE REQUERIDOS", "error"); return; }
 
     // VALIDACIÓN DE DUPLICADOS GLOBAL
-    const areas = ["auxiliares", "turbina", "ciclo", "caldera", "calderas_auxiliares", "externas", "instrumentacion", "contra_incendio"];
+    const areas = ["auxiliares", "turbina", "ciclo", "caldera", "calderas_auxiliares", "externas", "instrumentacion", "electricista", "protecciones", "contra_incendio"];
     const colaEnv = JSON.parse(localStorage.getItem('cola_envios') || "[]");
     const colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
 
@@ -1802,9 +1864,20 @@ function dibujarGraficaArranqueCompleta(t, mw, temp, criticidad) {
 // ================= INICIALIZACIÓN ==================
 document.addEventListener('DOMContentLoaded', () => {
     conectarFirebase();
-    const area = sessionStorage.getItem('area_actual');
+    const area = sessionStorage.getItem('area_actual') || localStorage.getItem('area_actual');
     const role = sessionStorage.getItem('user_role');
     const cardOp = document.getElementById('card-operacion-especial'); if(cardOp) cardOp.style.display = (area === 'Operaciones') ? 'flex' : 'none';
+
+    if (area && document.getElementById('mapa-equipos')) {
+        // Si venimos de la bienvenida con un área ya seleccionada, filtrar de una vez
+        if (area === 'electricista') {
+            filtrarSistema('electricista', false);
+        } else if (area === 'protecciones') {
+            filtrarSistema('protecciones', true);
+        } else {
+            filtrarSistema(area);
+        }
+    }
 
     // Monitoreo global para el Maestro
     if(role === 'super') {
@@ -1980,6 +2053,328 @@ function eliminarFotoDePrevio(index) {
     notificar("FOTO REMOVIDA", "info");
 }
 function verImagenFull(src, tit) { const m = document.getElementById('modal-info'); const i = document.getElementById('info-tecnica'); if(m && i) { i.innerHTML = `<h2 style="color:#ffcc00;">${tit}</h2><img src="${src}" style="width:100%; border:1px solid #333;">`; m.style.display='flex'; } }
+
+function verSeccionMegados() {
+    const submenu = document.getElementById('submenu-electrica');
+    if (submenu) submenu.style.display = 'none';
+
+    const mapEquipos = document.getElementById('mapa-equipos');
+    if (mapEquipos) mapEquipos.style.display = 'none';
+
+    const busc = document.getElementById('contenedor-buscador');
+    if (busc) busc.style.display = 'none';
+
+    const btnMegaProt = document.getElementById('btn-megado-protecciones');
+    if (btnMegaProt) btnMegaProt.style.display = 'none';
+
+    const contMegados = document.getElementById('contenedor-megados-area');
+    const contSim = document.getElementById('contenedor-simulador-megado');
+    const contDocs = document.getElementById('contenedor-docs-area');
+
+    if (contMegados) {
+        contMegados.style.display = 'block';
+        cargarMegados();
+        const role = sessionStorage.getItem('user_role');
+        const btnNuevo = document.getElementById('btn-nuevo-megado');
+        if (btnNuevo) btnNuevo.style.display = (role === 'super' || role === 'editor') ? 'block' : 'none';
+    }
+    if (contSim) {
+        contSim.style.display = 'block';
+        cargarUltimoMantenimientoSim();
+    }
+    if (contDocs) {
+        // En megados mostramos documentos generales de eléctrica
+        contDocs.style.display = 'block';
+        cargarDocsDelArea('electricista');
+    }
+}
+
+// ================= GESTIÓN DE MEGADOS (ÁREA ELÉCTRICA) ==================
+function cargarMegados() {
+    const lista = document.getElementById('lista-megados');
+    if (!lista) return;
+
+    const render = (data = null) => {
+        let items = data || JSON.parse(localStorage.getItem('cache_megados') || "{}");
+        lista.innerHTML = "";
+
+        const keys = Object.keys(items).sort((a, b) => items[b].timestamp - items[a].timestamp);
+
+        if (keys.length === 0) {
+            lista.innerHTML = "<p style='color:#666; font-size:0.75rem; text-align:center;'>Sin registros de megados.</p>";
+            return;
+        }
+
+        // Agrupar por TAG manteniendo el orden del registro más reciente
+        const grupos = {};
+        const ordenGrupos = [];
+
+        keys.forEach(id => {
+            const m = items[id];
+            const tag = m.tag || "S/T";
+            if (!grupos[tag]) {
+                grupos[tag] = [];
+                ordenGrupos.push(tag);
+            }
+            grupos[tag].push({ ...m, id });
+        });
+
+        ordenGrupos.forEach(tag => {
+            const historial = grupos[tag];
+            const ultimo = historial[0];
+            const total = historial.length;
+
+            if (total > 1) {
+                // Generar acordeón para múltiples registros
+                const accordionId = "acc-" + tag.replace(/[^a-zA-Z0-9]/g, "-");
+                lista.innerHTML += `
+                    <div class="user-item-modern" style="border-left: 4px solid #ffcc00; background: rgba(255,204,0,0.05); margin-bottom: 10px; flex-direction: column; align-items: stretch; padding: 0;">
+                        <div onclick="document.getElementById('${accordionId}').classList.toggle('active'); this.classList.toggle('active')" class="accordion-admin" style="border: none; border-radius: 12px; margin-bottom: 0; background: transparent; padding: 15px;">
+                            <div style="flex: 1;">
+                                <b style="color:#ffcc00;">${ultimo.equipo}</b> <small style="color:#aaa;">[${tag}]</small><br>
+                                <span style="font-size:0.8rem; color:#fff;">${total} REVISIONES DISPONIBLES</span>
+                            </div>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div id="${accordionId}" class="panel-admin" style="padding: 0 15px 15px 15px;">
+                            ${historial.map(m => `
+                                <div style="border-top: 1px solid rgba(255,255,255,0.1); padding: 10px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <div>
+                                            <b style="color:#00ccff;">${m.valor} MΩ</b> <small style="color:#888;">(${m.fecha})</small><br>
+                                            <div style="font-size: 0.7rem; color: #eee; margin-top: 5px; white-space: pre-wrap;">${m.diagnostico || 'Sin diagnóstico detallado'}</div>
+                                            <small style="color:#666;">Por: ${m.tecnico.toUpperCase()}</small>
+                                        </div>
+                                        ${(sessionStorage.getItem('user_role') === 'super' || sessionStorage.getItem('user_role') === 'editor') ?
+                                            `<button onclick="eliminarMegado('${m.id}')" style="background:none; border:none; color:#ff4444;"><i class="fas fa-trash-alt"></i></button>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+            } else {
+                // Registro único normal
+                const m = ultimo;
+                lista.innerHTML += `
+                    <div class="user-item-modern" style="border-left: 4px solid #ffcc00; background: rgba(255,204,0,0.05); margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <b style="color:#ffcc00;">${m.equipo}</b> <small style="color:#aaa;">[${m.tag}]</small><br>
+                            <span style="font-size:1.1rem; font-weight:bold; color:#fff;">${m.valor} MΩ</span><br>
+                            <div style="font-size: 0.7rem; color: #eee; margin-top: 5px; white-space: pre-wrap;">${m.diagnostico || 'Sin diagnóstico detallado'}</div>
+                            <small style="color:#00ccff;"><i class="fas fa-calendar-alt"></i> ${m.fecha}</small>
+                            <small style="color:#888; margin-left:10px;"><i class="fas fa-user-hard-hat"></i> ${m.tecnico.toUpperCase()}</small>
+                        </div>
+                        ${(sessionStorage.getItem('user_role') === 'super' || sessionStorage.getItem('user_role') === 'editor') ?
+                            `<button onclick="eliminarMegado('${m.id}')" style="background:none; border:none; color:#ff4444; font-size:1.2rem;"><i class="fas fa-trash-alt"></i></button>` : ''}
+                    </div>`;
+            }
+        });
+    };
+
+    render();
+    if (database) {
+        database.ref('megados').on('value', s => {
+            const val = s.val() || {};
+            localStorage.setItem('cache_megados', JSON.stringify(val));
+            render(val);
+        });
+    }
+}
+
+function abrirGestionMegados() {
+    // Si se abre desde el botón general, advertir que debe usarse el simulador
+    notificar("USE EL BOTÓN 'REGISTRAR' EN EL SIMULADOR PARA GUARDAR DATOS", "warning");
+}
+
+function guardarMegado() {
+    const tag = document.getElementById('mega-tag').value.trim().toUpperCase();
+    const eq = document.getElementById('mega-equipo').value.trim();
+    const val = document.getElementById('mega-valor').value.trim();
+    const pass = document.getElementById('mega-pass').value.trim();
+
+    if (!tag || !eq || !val || !pass) { notificar("TODOS LOS CAMPOS SON REQUERIDOS", "error"); return; }
+
+    const fechaHora = new Date().toLocaleString(); // Automático e inalterable
+
+    // Verificar Clave
+    const masterPass = localStorage.getItem('master_pass') || 'luis2026';
+    const localUsers = JSON.parse(localStorage.getItem('user_db') || "{}");
+    let tecnico = "";
+    let autorizado = false;
+
+    const masterName = localStorage.getItem('master_name') || 'luis';
+    if (pass === masterPass || pass === "6969") {
+        autorizado = true;
+        tecnico = masterName;
+    } else {
+        Object.keys(localUsers).forEach(u => {
+            if (pass === localUsers[u].clave && (localUsers[u].rol === 'super' || localUsers[u].rol === 'editor')) {
+                autorizado = true;
+                tecnico = u;
+            }
+        });
+    }
+
+    if (!autorizado) {
+        // Consultar nube si no está en local
+        if (database) {
+            database.ref('usuarios').once('value').then(snap => {
+                const users = snap.val() || {};
+                let userFound = null;
+                Object.keys(users).forEach(u => { if (users[u].clave === pass && (users[u].rol === 'super' || users[u].rol === 'editor')) userFound = u; });
+
+                if (userFound) ejecutarGuardadoMegado(tag, eq, val, fechaHora, userFound);
+                else notificar("CLAVE DE AUTORIZACIÓN INCORRECTA", "error");
+            });
+            return;
+        } else {
+            notificar("MODO OFFLINE - CLAVE NO RECONOCIDA", "error");
+            return;
+        }
+    }
+
+    ejecutarGuardadoMegado(tag, eq, val, fechaHora, tecnico);
+}
+
+function ejecutarGuardadoMegado(tag, equipo, valor, fecha, tecnico) {
+    // Capturar diagnóstico del simulador si está activo
+    const diagEl = document.getElementById('diagnostico-motor');
+    let diagnostico = "Registro manual sin simulador.";
+    if (diagEl && diagEl.style.display !== 'none') {
+        diagnostico = diagEl.innerText.replace("ANÁLISIS TÉCNICO:", "").trim();
+    }
+
+    const data = {
+        tag,
+        equipo,
+        valor,
+        fecha,
+        tecnico,
+        diagnostico,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    if (database) {
+        database.ref('megados').push(data).then(() => {
+            notificar("REGISTRO GUARDADO EXITOSAMENTE");
+            document.getElementById('modal-gestion-megados').style.display = 'none';
+            registrarLog("REGISTRÓ MEGADO: " + tag + " (" + valor + " MΩ)");
+        });
+    } else {
+        notificar("ERROR: SIN CONEXIÓN A LA NUBE", "error");
+    }
+}
+
+function eliminarMegado(id) {
+    confirmarHMI("¿BORRAR REGISTRO?", "¿Eliminar este registro de megado?", () => {
+        if (database) {
+            database.ref('megados/' + id).remove().then(() => notificar("REGISTRO ELIMINADO"));
+        }
+    });
+}
+
+// ================= SIMULADOR TÉCNICO DE AISLAMIENTO (MEGADO) ==================
+function calcularSaludMotor() {
+    const v = parseFloat(document.getElementById('sim-voltaje').value) || 480;
+    const r = parseFloat(document.getElementById('sim-resistencia').value) || 0;
+    const t = parseFloat(document.getElementById('sim-temp').value) || 25;
+    const h = parseFloat(document.getElementById('sim-horas').value) || 0;
+
+    if (r <= 0) return;
+
+    // 1. Corrección de Temperatura a 40°C (Factor K = 0.5 por cada 10°C)
+    const rCorregida = r * Math.pow(0.5, (40 - t) / 10);
+
+    // 2. Resistencia Mínima Sugerida (IEEE 43-2000): kV + 1 MΩ
+    const rMin = (v / 1000) + 1;
+
+    // 3. Cálculo de Porcentaje de Salud (0 a 100)
+    let salud = 0;
+    if (rCorregida >= rMin * 10) salud = 100;
+    else if (rCorregida <= rMin) salud = 0;
+    else salud = ((rCorregida - rMin) / (rMin * 9)) * 100;
+
+    // 4. Actualizar Gráfica
+    const bar = document.getElementById('gauge-bar');
+    const valTxt = document.getElementById('res-simulador-valor');
+    const statusTxt = document.getElementById('res-simulador-status');
+
+    bar.style.width = salud + "%";
+    valTxt.innerText = rCorregida.toFixed(1) + " MΩ (Corregido)";
+
+    if (salud > 80) { bar.style.background = "#2ecc71"; statusTxt.innerText = "ESTADO: ÓPTIMO"; statusTxt.style.color = "#2ecc71"; }
+    else if (salud > 40) { bar.style.background = "#f1c40f"; statusTxt.innerText = "ESTADO: ADCEPTABLE"; statusTxt.style.color = "#f1c40f"; }
+    else { bar.style.background = "#e74c3c"; statusTxt.innerText = "ESTADO: CRÍTICO / RIESGO"; statusTxt.style.color = "#e74c3c"; }
+
+    // 5. Diagnóstico y Sugerencias
+    const diag = document.getElementById('diagnostico-motor');
+    diag.style.display = 'block';
+
+    let sug = "";
+    const proximoMantenimientoHoras = 8000 - (h % 8000);
+
+    if (salud < 30) sug = "🚨 <b>PELIGRO INMINENTE:</b> El motor presenta baja resistencia. NO ARRANCAR. Requiere limpieza y secado de devanados urgente.";
+    else if (salud < 60) sug = "⚠️ <b>ALERTA TÉCNICA:</b> Aislamiento degradado. Programar mantenimiento preventivo en las próximas 48 horas.";
+    else if (proximoMantenimientoHoras < 1000) sug = "🔧 <b>SUGERENCIA:</b> Ciclo de vida útil en etapa de servicio. Programar engrase y revisión en " + proximoMantenimientoHoras.toFixed(0) + " horas.";
+    else sug = "✅ <b>SISTEMA SALUDABLE:</b> El motor opera dentro de parámetros nominales. Siga plan de inspección trimestral.";
+
+    diag.innerHTML = `
+        <b style="color:#00ccff;">ANÁLISIS TÉCNICO:</b><br>
+        • Resistencia Corregida (40°C): <b>${rCorregida.toFixed(2)} MΩ</b><br>
+        • Límite Crítico (IEEE): <b>${rMin.toFixed(2)} MΩ</b><br>
+        • Vida Útil Estimada: <b>${salud.toFixed(1)}%</b><br><br>
+        ${sug}
+    `;
+}
+
+function registrarMantenimientoSim() {
+    const v = document.getElementById('sim-voltaje').value;
+    const r = document.getElementById('sim-resistencia').value;
+
+    if (!v || !r) { notificar("COMPLETE LOS DATOS DEL SIMULADOR", "error"); return; }
+
+    // Preparar modal de megados con datos del simulador
+    document.getElementById('mega-valor').value = r;
+    document.getElementById('mega-tag').value = "";
+    document.getElementById('mega-equipo').value = "";
+    document.getElementById('mega-pass').value = "";
+
+    document.getElementById('modal-gestion-megados').style.display = 'flex';
+    notificar("INGRESE LOS DATOS DEL EQUIPO Y SU CLAVE", "info");
+}
+
+function cargarUltimoMantenimientoSim() {
+    if (!database) return;
+    database.ref('historial_mantenimientos_motores').limitToLast(1).once('value', s => {
+        const data = s.val();
+        const diag = document.getElementById('diagnostico-motor');
+        if (data && diag) {
+            const last = Object.values(data)[0];
+            const fechaLast = new Date(last.timestamp);
+            const hoy = new Date();
+            const mesesTranscurridos = (hoy - fechaLast) / (1000 * 60 * 60 * 24 * 30);
+
+            let extraInfo = `<br><hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:10px 0;">`;
+            extraInfo += `<b style="color:#ffcc00;">ÚLTIMO MANTENIMIENTO REGISTRADO:</b><br>`;
+            extraInfo += `• Fecha: ${last.fecha} (${last.tecnico.toUpperCase()})<br>`;
+            extraInfo += `• Valor: ${last.resistencia} MΩ<br>`;
+
+            if (mesesTranscurridos > 6) {
+                extraInfo += `<br><span style="color:#ff4444;">🚨 HAN PASADO MÁS DE 6 MESES DESDE EL ÚLTIMO MEGADO. SE RECOMIENDA REALIZAR UNA NUEVA MEDICIÓN DE INMEDIATO.</span>`;
+            } else {
+                const mesesRestantes = (6 - mesesTranscurridos).toFixed(1);
+                extraInfo += `<br><span style="color:#2ecc71;">✅ PRÓXIMA REVISIÓN SUGERIDA EN: ${mesesRestantes} MESES.</span>`;
+            }
+
+            // Si el div ya tiene contenido del cálculo actual, lo conservamos y añadimos esto
+            if (!diag.innerHTML.includes("ÚLTIMO MANTENIMIENTO")) {
+                diag.innerHTML += extraInfo;
+                diag.style.display = 'block';
+            }
+        }
+    });
+}
+
 
 // ================= GESTIÓN DE SOLICITUDES (BIENVENIDA) ==================
 function mostrarFormSolicitud() {
