@@ -102,18 +102,58 @@
 
                 <section class="manual-seccion" style="border-left: 4px solid #00ffcc; padding-left: 15px;">
                     <h3><i class="fas fa-star"></i> NUEVAS FUNCIONES ACTUALIZADAS</h3>
-                    <div class="paso-item"><b>• Conversor Técnico:</b> Herramienta integrada para convertir unidades de Presión (bar, psi, MPa, kPa), Temperatura, Flujo y Potencia.</div>
-                    <div class="paso-item"><b>• Análisis de Riesgo:</b> Diagnóstico en tiempo real de fallas metalúrgicas (Fatiga Térmica / Creep) según la curva de arranque.</div>
-                    <div class="paso-item"><b>• Protección de Datos:</b> Sistema de seguridad que impide capturas de pantalla para resguardar información confidencial de la planta.</div>
-                    <div class="paso-item"><b>• Gestión de Acceso:</b> Nuevo panel para que el administrador pueda Aceptar o Denegar solicitudes de personal de forma inmediata.</div>
+                    <div class="paso-item"><b>• Simulador IEEE 43-2000:</b> Evaluación avanzada de aislamiento con corrección automática de temperatura y cálculo de vida útil.</div>
+                    <div class="paso-item"><b>• Sucesión de Mando:</b> Protocolo de fail-safe que promueve a un editor a Maestro tras 72h de inactividad del administrador.</div>
+                    <div class="paso-item"><b>• Monitoreo de Actividad:</b> El Maestro recibe notificaciones y vibraciones inmediatas de cualquier cambio realizado por editores.</div>
+                    <div class="paso-item"><b>• Sincronización Inteligente:</b> Gestión robusta de colas para Equipos, Planos y Documentos en modo offline/online.</div>
+                    <div class="paso-item"><b>• Conversor Técnico:</b> Herramienta integrada para unidades de Presión, Temperatura, Flujo y Potencia.</div>
+                    <div class="paso-item"><b>• Análisis de Riesgo:</b> Diagnóstico de fallas metalúrgicas (Fatiga/Creep) según la curva de carga.</div>
                 </section>
 
                 <section class="manual-seccion">
                     <h3><i class="fas fa-layer-group"></i> EXPLICACIÓN DE FUNCIONES</h3>
-                    <div class="paso-item"><b>1. HMI Interactivo:</b> Mapa visual de los sistemas (Caldera, Turbina, Ciclo, etc.) con acceso a fichas técnicas de cada equipo.</div>
-                    <div class="paso-item"><b>2. Gestión Offline:</b> Permite cargar datos sin conexión. La app sincroniza los cambios con Firebase automáticamente al detectar internet.</div>
-                    <div class="paso-item"><b>3. Biblioteca Técnica:</b> Repositorio de planos y documentos (Excel/Word/PDF) organizados por área de trabajo.</div>
-                    <div class="paso-item"><b>4. Panel de Control U6:</b> Específico para operadores de banco, con pasos de arranque y cálculo de eficiencia térmica η.</div>
+                    <div class="paso-item"><b>1. HMI Interactivo:</b> Mapa visual de los sistemas con acceso a fichas técnicas y protocolos de operación.</div>
+                    <div class="paso-item"><b>2. Gestión Offline:</b> Almacenamiento local temporal que se sincroniza automáticamente al detectar internet.</div>
+                    <div class="paso-item"><b>3. Biblioteca Técnica:</b> Repositorio de planos y documentos (Excel/Word/PDF) con descarga directa al dispositivo.</div>
+                    <div class="paso-item"><b>4. Panel de Control U6:</b> Específico para operadores, con pasos de arranque y cálculo de eficiencia térmica η.</div>
+                    <div class="paso-item"><b>5. Simulador de Megado:</b> Calcula la salud del motor, aplica límites críticos IEEE y sugiere planes de mantenimiento.</div>
+                    <div class="paso-item"><b>6. Seguridad Industrial:</b> Bloqueo de capturas, inspección de código y PrintScreen para resguardar datos sensibles.</div>
+                </section>
+
+                <section class="manual-seccion" style="background: rgba(0, 255, 204, 0.03); border: 1px dashed #00ffcc; padding: 15px; border-radius: 12px;">
+                    <h3 style="color: #00ffcc;"><i class="fas fa-square-root-alt"></i> MEMORIA DE CÁLCULO E INGENIERÍA</h3>
+                    <p style="font-size: 0.7rem; color: #aaa; margin-bottom: 15px;">Ecuaciones utilizadas por el núcleo de procesamiento de la App para validación manual:</p>
+
+                    <div style="font-family: monospace; font-size: 0.75rem; color: #eee; display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <b style="color: #00ffcc;">1. Eficiencia Térmica del Ciclo (η):</b><br>
+                            η = [ (MW * 860) / (Flujo_Fuel(kg/h) * PCI) ] * 100<br>
+                            <small style="color: #888;">* PCI (Poder Calorífico): 10,200 kcal/kg</small>
+                        </div>
+
+                        <div>
+                            <b style="color: #00ffcc;">2. Resistencia de Aislamiento Corregida (Rc):</b><br>
+                            Rc = Rt * 0.5^((40 - T) / 10)<br>
+                            <small style="color: #888;">* Normalización a 40°C según estándar industrial.</small>
+                        </div>
+
+                        <div>
+                            <b style="color: #00ffcc;">3. Límite Crítico IEEE 43-2000 (Rmín):</b><br>
+                            Rmín = (V_terminal / 1000) + 1<br>
+                            <small style="color: #888;">* Resultado expresado en MegaOhmios (MΩ).</small>
+                        </div>
+
+                        <div>
+                            <b style="color: #00ffcc;">4. Análisis de Riesgo Metalúrgico:</b><br>
+                            Zona CREEP: Temp > 555°C (Riesgo de rotura)<br>
+                            Zona FATIGA: Temp 545°C - 555°C (Estrés térmico)
+                        </div>
+
+                        <div>
+                            <b style="color: #00ffcc;">5. Conversión de Presión Crítica:</b><br>
+                            1 PSI = 0.0689476 bar | 1 MPa = 10 bar
+                        </div>
+                    </div>
                 </section>
             </div>
 

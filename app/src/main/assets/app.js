@@ -87,11 +87,12 @@ function conectarFirebase() {
                 if (isConnected) {
                     const role = sessionStorage.getItem('user_role') || 'LECTURA';
                     const user = sessionStorage.getItem('user_name') || 'Invitado';
+                    const esBienvenida = window.location.href.includes("bienvenida.html");
 
                     if (!notificacionConexionMostrada && (role !== 'LECTURA' || user !== 'Invitado')) {
                         notificacionConexionMostrada = true;
                         notificacionOfflineMostrada = false;
-                        notificar("CONEXIÓN RESTABLECIDA - SINCRONIZANDO DATOS", "exito");
+                        if (esBienvenida) notificar("CONEXIÓN RESTABLECIDA - SINCRONIZANDO DATOS", "exito");
                     }
 
                     // RASTREO DE PRESENCIA (Solo si hay usuario)
@@ -123,7 +124,7 @@ function conectarFirebase() {
                     if (!navigator.onLine && !notificacionOfflineMostrada) {
                         notificacionOfflineMostrada = true;
                         notificacionConexionMostrada = false;
-                        notificar("TRABAJANDO EN MODO OFFLINE", "warning");
+                        if (window.location.href.includes("bienvenida.html")) notificar("TRABAJANDO EN MODO OFFLINE", "warning");
                     }
                 }
             });
@@ -142,8 +143,9 @@ function sincronizarColas() {
     const colaPlDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
     const colaDocEnv = JSON.parse(localStorage.getItem('cola_docs_envios') || "[]");
     const colaDocDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
+    const colaMegaDel = JSON.parse(localStorage.getItem('cola_megados_del') || "[]");
 
-    const totalPendiente = colaEnv.length + colaDel.length + colaPlEnv.length + colaPlDel.length + colaDocEnv.length + colaDocDel.length;
+    const totalPendiente = colaEnv.length + colaDel.length + colaPlEnv.length + colaPlDel.length + colaDocEnv.length + colaDocDel.length + colaMegaDel.length;
     if (totalPendiente === 0) { syncing = false; return; }
 
     const promesas = [];
@@ -207,12 +209,23 @@ function sincronizarColas() {
         }));
     });
 
+    // 4. PROCESAR MEGADOS (ELIMINACIÓN)
+    colaMegaDel.forEach(id => {
+        promesas.push(database.ref('megados/' + id).remove().then(() => {
+            let actual = JSON.parse(localStorage.getItem('cola_megados_del') || "[]");
+            actual = actual.filter(i => i !== id);
+            localStorage.setItem('cola_megados_del', JSON.stringify(actual));
+            registrarLog("ELIMINÓ REGISTRO DE MEGADO INDIVIDUAL");
+        }));
+    });
+
     Promise.allSettled(promesas).then(() => {
         syncing = false;
         notificar("DATOS SINCRONIZADOS CORRECTAMENTE", "exito");
         if(typeof cargarEquiposEdicion === 'function') cargarEquiposEdicion();
         if(typeof cargarPlanosEdicionGeneral === 'function') cargarPlanosEdicionGeneral();
         if(typeof cargarDocsEdicion === 'function') cargarDocsEdicion();
+        if(typeof cargarMegados === 'function') cargarMegados();
     });
 }
 
@@ -509,6 +522,13 @@ function filtrarSistema(sistema, esSubmenu = false) {
             submenu.style.display = 'flex';
             sessionStorage.setItem('area_actual', 'electricista');
         }
+        return;
+    }
+
+    // Lógica para ÁREA DE OPERACIONES
+    if (sistema === 'Operaciones') {
+        if(cardOp) cardOp.style.display = 'flex';
+        if(grid) grid.style.display = 'grid'; // Mostrar grid para que pueda ver otros sistemas si quiere
         return;
     }
 
@@ -1898,6 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
         cargarListaUsuarios(); cargarListaPersonalAutorizado();
+        cargarMegados(); // También cargar historial de megados en el panel admin
     }
 
     // Mostrar botón de logout si hay sesión activa
@@ -2078,9 +2099,6 @@ function verSeccionMegados() {
     if (contMegados) {
         contMegados.style.display = 'block';
         cargarMegados();
-        const role = sessionStorage.getItem('user_role');
-        const btnNuevo = document.getElementById('btn-nuevo-megado');
-        if (btnNuevo) btnNuevo.style.display = (role === 'super' || role === 'editor') ? 'block' : 'none';
     }
     if (contSim) {
         contSim.style.display = 'block';
@@ -2100,6 +2118,15 @@ function cargarMegados() {
 
     const render = (data = null) => {
         let items = data || JSON.parse(localStorage.getItem('cache_megados') || "{}");
+
+        // FILTRAR LOCALMENTE LOS QUE ESTÁN EN COLA DE ELIMINACIÓN
+        const colaDel = JSON.parse(localStorage.getItem('cola_megados_del') || "[]");
+        const itemsFiltrados = {};
+        Object.keys(items).forEach(k => {
+            if(!colaDel.includes(k)) itemsFiltrados[k] = items[k];
+        });
+        items = itemsFiltrados;
+
         lista.innerHTML = "";
 
         const keys = Object.keys(items).sort((a, b) => items[b].timestamp - items[a].timestamp);
@@ -2149,7 +2176,7 @@ function cargarMegados() {
                                             <div style="font-size: 0.7rem; color: #eee; margin-top: 5px; white-space: pre-wrap;">${m.diagnostico || 'Sin diagnóstico detallado'}</div>
                                             <small style="color:#666;">Por: ${m.tecnico.toUpperCase()}</small>
                                         </div>
-                                        ${(sessionStorage.getItem('user_role') === 'super' || sessionStorage.getItem('user_role') === 'editor') ?
+                                        ${(sessionStorage.getItem('user_role') === 'super') ?
                                             `<button onclick="eliminarMegado('${m.id}')" style="background:none; border:none; color:#ff4444;"><i class="fas fa-trash-alt"></i></button>` : ''}
                                     </div>
                                 </div>
@@ -2168,7 +2195,7 @@ function cargarMegados() {
                             <small style="color:#00ccff;"><i class="fas fa-calendar-alt"></i> ${m.fecha}</small>
                             <small style="color:#888; margin-left:10px;"><i class="fas fa-user-hard-hat"></i> ${m.tecnico.toUpperCase()}</small>
                         </div>
-                        ${(sessionStorage.getItem('user_role') === 'super' || sessionStorage.getItem('user_role') === 'editor') ?
+                        ${(sessionStorage.getItem('user_role') === 'super') ?
                             `<button onclick="eliminarMegado('${m.id}')" style="background:none; border:none; color:#ff4444; font-size:1.2rem;"><i class="fas fa-trash-alt"></i></button>` : ''}
                     </div>`;
             }
@@ -2270,11 +2297,37 @@ function ejecutarGuardadoMegado(tag, equipo, valor, fecha, tecnico) {
 }
 
 function eliminarMegado(id) {
+    const role = sessionStorage.getItem('user_role');
+    if (role !== 'super') {
+        notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error");
+        return;
+    }
+
     confirmarHMI("¿BORRAR REGISTRO?", "¿Eliminar este registro de megado?", () => {
-        if (database) {
-            database.ref('megados/' + id).remove().then(() => notificar("REGISTRO ELIMINADO"));
-        }
+        // AGREGAR A COLA DE ELIMINACIÓN OFFLINE
+        let colaDel = JSON.parse(localStorage.getItem('cola_megados_del') || "[]");
+        if(!colaDel.includes(id)) colaDel.push(id);
+        localStorage.setItem('cola_megados_del', JSON.stringify(colaDel));
+
+        notificar("ELIMINACIÓN PENDIENTE (MODO OFFLINE)");
+        cargarMegados(); // Actualizar vista local
+        sincronizarColas(); // Intentar sincronizar si hay red
     });
+}
+
+function limpiarHistorialMegado() {
+    const role = sessionStorage.getItem('user_role');
+    if (role !== 'super') {
+        notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error");
+        return;
+    }
+
+    const btnAcc = document.getElementById('btn-acc-megados');
+    if (btnAcc) {
+        if (!btnAcc.classList.contains('active')) btnAcc.click();
+        btnAcc.scrollIntoView({ behavior: 'smooth' });
+        notificar("ELIJA EL REGISTRO A ELIMINAR ESPECÍFICAMENTE", "info");
+    }
 }
 
 // ================= SIMULADOR TÉCNICO DE AISLAMIENTO (MEGADO) ==================
