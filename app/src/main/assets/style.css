@@ -95,6 +95,35 @@ body::before {
 .logo-mini { height: 35px; width: auto; }
 .bandera-mini { height: 20px; width: auto; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
 
+/* EFECTO TORMENTA ELÉCTRICA */
+.storm-container {
+    position: relative;
+    display: inline-block;
+}
+
+.bolt {
+    position: absolute;
+    background: #fff;
+    box-shadow: 0 0 10px #00ccff, 0 0 20px #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Diferentes posiciones y rotaciones para los rayitos */
+.b1 { width: 15px; height: 1px; top: -10px; left: 10%; transform: rotate(-30deg); animation: bolt-flash 4s infinite 0.1s; }
+.b2 { width: 1px; height: 15px; top: 10%; right: -10px; transform: rotate(20deg); animation: bolt-flash 5s infinite 1.5s; }
+.b3 { width: 20px; height: 1px; bottom: -5px; left: 30%; transform: rotate(10deg); animation: bolt-flash 3.5s infinite 2.2s; }
+.b4 { width: 1px; height: 12px; bottom: 20%; left: -8px; transform: rotate(-15deg); animation: bolt-flash 4.5s infinite 3s; }
+
+@keyframes bolt-flash {
+    0%, 10%, 15%, 100% { opacity: 0; scale: 0; }
+    11% { opacity: 1; scale: 1.2; }
+    12% { opacity: 0.3; scale: 0.8; }
+    13% { opacity: 1; scale: 1.1; }
+    14% { opacity: 0; scale: 0; }
+}
+
 .content-center { position: relative; top: 0; margin-top: 30vh; width: 100%; text-align: center; color: white; padding: 0 10px; }
 .glow-text { font-size: 3rem; margin: 0; color: #ffcc00; text-shadow: 0 0 20px rgba(255,204,0,0.8); font-weight: 900; }
 .desc-planta { letter-spacing: 2px; font-size: 0.85rem; margin-top: 5px; opacity: 0.9; text-transform: uppercase; }
