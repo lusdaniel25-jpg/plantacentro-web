@@ -1623,8 +1623,9 @@ function analizarRendimiento() {
 
     // --- CÁLCULOS TERMODINÁMICOS ---
     const pci = 10200; // kcal/kg
-    const fuel_kg_h = fuel * 1000; // Convertir T/h a kg/h para el cálculo
-    const eficiencia = ((mw * 860) / (fuel_kg_h * pci)) * 100;
+    // Fórmula: (MW * 860 Mcal/MW) / (Fuel t/h * PCI Mcal/t) * 100
+    // Recordar: 1 t/h * 10200 kcal/kg = 10200 Mcal/h
+    const eficiencia = ((mw * 860) / (fuel * pci)) * 100;
 
     let reporte = "";
     let consejos = "";

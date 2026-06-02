@@ -127,26 +127,27 @@
                     <div style="font-family: monospace; font-size: 0.75rem; color: #eee; display: flex; flex-direction: column; gap: 12px;">
                         <div>
                             <b style="color: #00ffcc;">1. Eficiencia Térmica del Ciclo (η):</b><br>
-                            η = [ (MW * 860) / (Flujo_Fuel(kg/h) * PCI) ] * 100<br>
-                            <small style="color: #888;">* PCI (Poder Calorífico): 10,200 kcal/kg</small>
+                            η = [ (Generación_MW * 860) / (Flujo_Fuel(t/h) * PCI) ] * 100<br>
+                            <small style="color: #888;">* Explica qué porcentaje del calor del combustible se convierte en energía eléctrica útil. Usamos el flujo en <b>Toneladas por Hora (t/h)</b> para simplificar el cálculo industrial.</small>
                         </div>
 
                         <div>
                             <b style="color: #00ffcc;">2. Resistencia de Aislamiento Corregida (Rc):</b><br>
                             Rc = Rt * 0.5^((40 - T) / 10)<br>
-                            <small style="color: #888;">* Normalización a 40°C según estándar industrial.</small>
+                            <small style="color: #888;">* Ajusta la medición real (Rt) a una temperatura estándar de 40°C. Si el motor está caliente, la resistencia baja, por eso aplicamos este factor de corrección.</small>
                         </div>
 
                         <div>
                             <b style="color: #00ffcc;">3. Límite Crítico IEEE 43-2000 (Rmín):</b><br>
                             Rmín = (V_terminal / 1000) + 1<br>
-                            <small style="color: #888;">* Resultado expresado en MegaOhmios (MΩ).</small>
+                            <small style="color: #888;">* Es la resistencia mínima segura para operar. Ejemplo: Para un motor de 480V, el mínimo es 1.48 MΩ. Si Rc es menor, hay riesgo de cortocircuito.</small>
                         </div>
 
                         <div>
-                            <b style="color: #00ffcc;">4. Análisis de Riesgo Metalúrgico:</b><br>
-                            Zona CREEP: Temp > 555°C (Riesgo de rotura)<br>
-                            Zona FATIGA: Temp 545°C - 555°C (Estrés térmico)
+                            <b style="color: #00ffcc;">4. Análisis de Riesgo Metalúrgico (Temperatura):</b><br>
+                            <small style="color: #888;">Monitorea el estrés del acero en la caldera y turbina:</small><br>
+                            • <b>Zona CREEP (> 555°C):</b> El metal se deforma bajo presión. Riesgo de explosión o rotura inminente.<br>
+                            • <b>Zona FATIGA (545-555°C):</b> Desgaste acelerado por calor extremo.
                         </div>
 
                         <div>
