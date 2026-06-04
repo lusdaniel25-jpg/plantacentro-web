@@ -85,6 +85,20 @@ function conectarFirebase() {
         }
         database = firebase.database();
 
+        // RASTREO DE PRESENCIA INMEDIATO (Asegura estado online al navegar por áreas)
+        const roleP = sessionStorage.getItem('user_role') || 'LECTURA';
+        const userP = sessionStorage.getItem('user_name') || 'Invitado';
+        if (userP !== 'Invitado') {
+            const savedIdP = localStorage.getItem('user_id_std');
+            let idRastreoP = (roleP === 'super' || roleP === 'editor') ? userP : (savedIdP || userP);
+            idRastreoP = idRastreoP.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
+            if (idRastreoP) {
+                const presenceRef = database.ref('presencia/' + idRastreoP);
+                presenceRef.onDisconnect().update({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
+                presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
+            }
+        }
+
         if (!listenerConexionActivo) {
             database.ref('.info/connected').on('value', (snap) => {
                 const isConnected = snap.val() === true;
@@ -106,7 +120,7 @@ function conectarFirebase() {
                         if (esBienvenida) notificar("CONEXIÓN RESTABLECIDA - SINCRONIZANDO DATOS", "exito");
                     }
 
-                    // RASTREO DE PRESENCIA (Solo si hay usuario)
+                    // RASTREO DE PRESENCIA (Al reconectar)
                     if (user !== 'Invitado') {
                         const savedId = localStorage.getItem('user_id_std');
                         let idRastreo = (role === 'super' || role === 'editor') ? user : (savedId || user);
@@ -114,9 +128,8 @@ function conectarFirebase() {
 
                         if (idRastreo) {
                             const presenceRef = database.ref('presencia/' + idRastreo);
-                            presenceRef.onDisconnect().cancel();
-                            presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
                             presenceRef.onDisconnect().update({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
+                            presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
                         }
                     }
 
@@ -269,14 +282,24 @@ function verificarIdentidad() {
     // Casos especiales (Maestro o Usuarios Locales)
     if (id.toLowerCase() === masterName.toLowerCase() || id === masterPass || id === "6969") {
         sessionStorage.setItem('user_name', masterName);
+        sessionStorage.setItem('user_role', 'super');
+        localStorage.removeItem('user_id_std');
         entrarArea(areaSeleccionadaPaso);
         return;
     }
 
     let esAdminLocal = false;
-    Object.keys(localUsers).forEach(u => { if (id.toLowerCase() === u || id === localUsers[u].clave) esAdminLocal = true; });
+    let rolLocal = 'editor';
+    Object.keys(localUsers).forEach(u => {
+        if (id.toLowerCase() === u || id === localUsers[u].clave) {
+            esAdminLocal = true;
+            rolLocal = localUsers[u].rol || 'editor';
+        }
+    });
     if (esAdminLocal) {
         sessionStorage.setItem('user_name', id);
+        sessionStorage.setItem('user_role', rolLocal);
+        localStorage.removeItem('user_id_std');
         entrarArea(areaSeleccionadaPaso);
         return;
     }
@@ -293,9 +316,17 @@ function verificarIdentidad() {
             database.ref('usuarios').once('value').then(snap => {
                 const users = snap.val() || {};
                 let esAdminNube = false;
-                Object.keys(users).forEach(uname => { if (id.toLowerCase() === uname || id === users[uname].clave) esAdminNube = true; });
+                let rolNube = 'editor';
+                Object.keys(users).forEach(uname => {
+                    if (id.toLowerCase() === uname || id === users[uname].clave) {
+                        esAdminNube = true;
+                        rolNube = users[uname].rol || 'editor';
+                    }
+                });
                 if (esAdminNube) {
                     sessionStorage.setItem('user_name', id);
+                    sessionStorage.setItem('user_role', rolNube);
+                    localStorage.removeItem('user_id_std');
                     entrarArea(areaSeleccionadaPaso);
                 } else {
                     const msg = document.getElementById('msg-error-id');
@@ -405,7 +436,7 @@ function confirmarAcceso() {
 function entrarArea(area) {
     localStorage.setItem('area_actual', area);
     sessionStorage.setItem('area_actual', area); // Sincronizar ambos para seguridad
-    window.location.href = "index.html";
+    window.location.replace("index.html");
 }
 
 // ================= HMI OPERACIONES Y GRÁFICA ==================
@@ -1102,7 +1133,7 @@ function cargarListaUsuarios() {
         if(maestros.length > 0) {
             l.innerHTML += "<h4 style='color:#ff4444; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-crown'></i> MAESTROS (ACCESO TOTAL):</h4>";
             maestros.forEach(u => {
-                const searchKey = u.toLowerCase().trim();
+                const searchKey = u.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
                 l.innerHTML += generarItemUsuario(u, us[u], pr[searchKey]);
             });
         }
@@ -1110,7 +1141,7 @@ function cargarListaUsuarios() {
         if(editores.length > 0) {
             l.innerHTML += "<h4 style='color:#2ecc71; font-size:0.75rem; margin-bottom:10px; margin-top:15px;'><i class='fas fa-user-edit'></i> EDITORES TÉCNICOS:</h4>";
             editores.forEach(u => {
-                const searchKey = u.toLowerCase().trim();
+                const searchKey = u.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
                 l.innerHTML += generarItemUsuario(u, us[u], pr[searchKey]);
             });
         }
@@ -1289,7 +1320,7 @@ function cargarListaPersonalAutorizado() {
         Object.keys(data).forEach(id => {
             if(data[id].estado === 'activo') {
                 hayActivos = true;
-                const searchKey = id.toString().toLowerCase().trim();
+                const searchKey = id.toString().toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
                 const pres = (pr && pr[searchKey]) ? pr[searchKey] : { estado: 'offline', ultima: null };
                 const statusClass = pres.estado === 'online' ? 'status-online' : 'status-offline';
 
@@ -1600,6 +1631,19 @@ function descargarApp() {
 }
 
 function cerrarSesion() {
+    const user = sessionStorage.getItem('user_name');
+    const role = sessionStorage.getItem('user_role') || 'LECTURA';
+    const savedId = localStorage.getItem('user_id_std');
+
+    if (user && user !== 'Invitado' && database) {
+        let idRastreo = (role === 'super' || role === 'editor') ? user : (savedId || user);
+        idRastreo = idRastreo.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
+        database.ref('presencia/' + idRastreo).update({
+            estado: 'offline',
+            ultima: firebase.database.ServerValue.TIMESTAMP
+        });
+    }
+
     sessionStorage.clear();
     // Limpiamos también localStorage por si quedaron rastros antiguos
     localStorage.removeItem('user_role');
