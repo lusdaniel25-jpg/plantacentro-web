@@ -2100,6 +2100,51 @@ function eliminarFotoDePrevio(index) {
 }
 function verImagenFull(src, tit) { const m = document.getElementById('modal-info'); const i = document.getElementById('info-tecnica'); if(m && i) { i.innerHTML = `<h2 style="color:#ffcc00;">${tit}</h2><img src="${src}" style="width:100%; border:1px solid #333;">`; m.style.display='flex'; } }
 
+function mostrarSeleccionMegado() {
+    document.getElementById('modal-seleccion-megado').style.display = 'flex';
+}
+
+function seleccionarTipoMegado(tipo) {
+    sessionStorage.setItem('tipo_megado_actual', tipo);
+    document.getElementById('modal-seleccion-megado').style.display = 'none';
+
+    // Resetear inputs del simulador
+    if(document.getElementById('sim-voltaje')) document.getElementById('sim-voltaje').value = "";
+    if(document.getElementById('sim-resistencia')) document.getElementById('sim-resistencia').value = "";
+    if(document.getElementById('sim-temp')) document.getElementById('sim-temp').value = "";
+    if(document.getElementById('sim-horas')) document.getElementById('sim-horas').value = "";
+    if(document.getElementById('sim-dar')) document.getElementById('sim-dar').value = "";
+    if(document.getElementById('sim-ip')) document.getElementById('sim-ip').value = "";
+    if(document.getElementById('diagnostico-motor')) document.getElementById('diagnostico-motor').style.display = 'none';
+    if(document.getElementById('gauge-bar')) document.getElementById('gauge-bar').style.width = "0%";
+    if(document.getElementById('res-simulador-valor')) document.getElementById('res-simulador-valor').innerText = "-- MΩ";
+    if(document.getElementById('res-simulador-status')) {
+        document.getElementById('res-simulador-status').innerText = "INGRESE PARÁMETROS";
+        document.getElementById('res-simulador-status').style.color = "#aaa";
+    }
+
+    // Mostrar/Ocultar campos específicos
+    const wrapConexion = document.getElementById('wrapper-sim-conexion');
+    const wrapDarIp = document.getElementById('wrapper-sim-dar-ip');
+    const wrapNucleos = document.getElementById('wrapper-sim-nucleos');
+    const wrapConductor = document.getElementById('wrapper-sim-conductor');
+
+    if (wrapConexion) wrapConexion.style.display = (tipo === 'MOTOR') ? 'grid' : 'none';
+    if (wrapDarIp) wrapDarIp.style.display = (tipo === 'MOTOR' || tipo === 'TRANSFORMADOR') ? 'grid' : 'none';
+    if (wrapNucleos) wrapNucleos.style.display = (tipo === 'TRANSFORMADOR') ? 'block' : 'none';
+    if (wrapConductor) wrapConductor.style.display = (tipo === 'CONDUCTOR') ? 'block' : 'none';
+
+    // Actualizar labels del simulador según el tipo seleccionado
+    const labelVoltaje = document.querySelector('label[for="sim-voltaje"]');
+    const tituloSim = document.querySelector('#contenedor-simulador-megado h3');
+
+    if (labelVoltaje) labelVoltaje.innerText = `VOLTAJE ${tipo} (V):`;
+    if (tituloSim) tituloSim.innerHTML = `<i class="fas fa-microchip"></i> SIMULADOR DE AISLAMIENTO: ${tipo}`;
+
+    verSeccionMegados();
+    notificar("INICIANDO MEDICIÓN PARA: " + tipo, "info");
+}
+
 function verSeccionMegados() {
     const submenu = document.getElementById('submenu-electrica');
     if (submenu) submenu.style.display = 'none';
@@ -2353,10 +2398,16 @@ function limpiarHistorialMegado() {
 
 // ================= SIMULADOR TÉCNICO DE AISLAMIENTO (MEGADO) ==================
 function calcularSaludMotor() {
+    const tipo = sessionStorage.getItem('tipo_megado_actual') || "EQUIPO";
     const v = parseFloat(document.getElementById('sim-voltaje').value) || 480;
     const r = parseFloat(document.getElementById('sim-resistencia').value) || 0;
     const t = parseFloat(document.getElementById('sim-temp').value) || 25;
     const h = parseFloat(document.getElementById('sim-horas').value) || 0;
+    const dar = parseFloat(document.getElementById('sim-dar').value) || 0;
+    const ip = parseFloat(document.getElementById('sim-ip').value) || 0;
+    const conexion = document.getElementById('sim-conexion') ? document.getElementById('sim-conexion').value : "N/A";
+    const nucleos = document.getElementById('sim-nucleos') ? document.getElementById('sim-nucleos').value : "N/A";
+    const conductor = document.getElementById('sim-conductor') ? document.getElementById('sim-conductor').value : "N/A";
 
     if (r <= 0) return;
 
@@ -2389,23 +2440,43 @@ function calcularSaludMotor() {
     diag.style.display = 'block';
 
     let sug = "";
+    let diagExtra = "";
     const proximoMantenimientoHoras = 8000 - (h % 8000);
 
-    if (salud < 30) sug = "🚨 <b>PELIGRO INMINENTE:</b> El motor presenta baja resistencia. NO ARRANCAR. Requiere limpieza y secado de devanados urgente.";
-    else if (salud < 60) sug = "⚠️ <b>ALERTA TÉCNICA:</b> Aislamiento degradado. Programar mantenimiento preventivo en las próximas 48 horas.";
-    else if (proximoMantenimientoHoras < 1000) sug = "🔧 <b>SUGERENCIA:</b> Ciclo de vida útil en etapa de servicio. Programar engrase y revisión en " + proximoMantenimientoHoras.toFixed(0) + " horas.";
-    else sug = "✅ <b>SISTEMA SALUDABLE:</b> El motor opera dentro de parámetros nominales. Siga plan de inspección trimestral.";
+    // Evaluación de DAR e IP (Valores típicos IEEE)
+    if (dar > 0) {
+        diagExtra += `• D.A.R: <b>${dar}</b> (${dar < 1.25 ? '<span style="color:#ff4444">POBRE</span>' : dar < 1.6 ? '<span style="color:#ffcc00">ACEPTABLE</span>' : '<span style="color:#2ecc71">EXCELENTE</span>'})<br>`;
+    }
+    if (ip > 0) {
+        diagExtra += `• I.P: <b>${ip}</b> (${ip < 1.0 ? '<span style="color:#ff4444">PELIGRO</span>' : ip < 2.0 ? '<span style="color:#ffcc00">ACEPTABLE</span>' : '<span style="color:#2ecc71">EXCELENTE</span>'})<br>`;
+    }
+    if (tipo === 'MOTOR') {
+        diagExtra += `• CONEXIÓN: <b>${conexion}</b><br>`;
+    }
+    if (tipo === 'TRANSFORMADOR') {
+        diagExtra += `• CONFIGURACIÓN: <b>${nucleos}</b><br>`;
+    }
+    if (tipo === 'CONDUCTOR') {
+        diagExtra += `• TIPO DE CABLE: <b>${conductor}</b><br>`;
+    }
+
+    if (salud < 30) sug = `🚨 <b>PELIGRO INMINENTE:</b> El ${tipo} presenta baja resistencia. NO OPERAR. Requiere inspección urgente.`;
+    else if (salud < 60) sug = `⚠️ <b>ALERTA TÉCNICA:</b> Aislamiento de ${tipo} degradado. Programar mantenimiento preventivo en las próximas 48 horas.`;
+    else if (proximoMantenimientoHoras < 1000) sug = `🔧 <b>SUGERENCIA:</b> Ciclo de vida útil de ${tipo} en etapa de servicio. Programar revisión en ${proximoMantenimientoHoras.toFixed(0)} horas.`;
+    else sug = `✅ <b>SISTEMA SALUDABLE:</b> El ${tipo} opera dentro de parámetros nominales. Siga plan de inspección trimestral.`;
 
     diag.innerHTML = `
-        <b style="color:#00ccff;">ANÁLISIS TÉCNICO:</b><br>
+        <b style="color:#00ccff;">ANÁLISIS TÉCNICO (${tipo}):</b><br>
         • Resistencia Corregida (40°C): <b>${rCorregida.toFixed(2)} MΩ</b><br>
         • Límite Crítico (IEEE): <b>${rMin.toFixed(2)} MΩ</b><br>
+        ${diagExtra}
         • Vida Útil Estimada: <b>${salud.toFixed(1)}%</b><br><br>
         ${sug}
     `;
 }
 
 function registrarMantenimientoSim() {
+    const tipo = sessionStorage.getItem('tipo_megado_actual') || "MOTOR";
     const v = document.getElementById('sim-voltaje').value;
     const r = document.getElementById('sim-resistencia').value;
 
@@ -2414,7 +2485,7 @@ function registrarMantenimientoSim() {
     // Preparar modal de megados con datos del simulador
     document.getElementById('mega-valor').value = r;
     document.getElementById('mega-tag').value = "";
-    document.getElementById('mega-equipo').value = "";
+    document.getElementById('mega-equipo').value = tipo + " ";
     document.getElementById('mega-pass').value = "";
 
     document.getElementById('modal-gestion-megados').style.display = 'flex';
