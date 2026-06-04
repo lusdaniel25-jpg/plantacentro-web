@@ -1,5 +1,5 @@
 // Configuración de Firebase - Planta Centro Unidad 6
-const VERSION_APP = 1.3;
+const VERSION_APP = 1.4;
 
 // --- SEGURIDAD DE FLUJO INICIAL (INSTANTÁNEA) ---
 (function() {
