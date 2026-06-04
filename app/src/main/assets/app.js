@@ -736,6 +736,7 @@ function cargarDocsDelArea(area) {
 // ================= GESTIÓN ADMIN COMPLETA ==================
 function cargarEquiposEdicion() {
     const area = document.getElementById('input-area').value;
+    const role = sessionStorage.getItem('user_role');
 
     const render = (liveData = null) => {
         let val;
@@ -782,7 +783,7 @@ function cargarEquiposEdicion() {
                     </div>
                     <div style="display: flex; gap: 8px;">
                         <button onclick="cargarParaEditar('${encodeURIComponent(JSON.stringify(eq))}', '${area}')" style="background: rgba(0,204,255,0.15); border: 1.5px solid #00ccff; color: #00ccff; padding: 6px 10px; border-radius: 8px;"><i class="fas fa-edit"></i></button>
-                        <button onclick="eliminarEquipo('${area}', '${eq.fbKey || eq.tag}')" style="background: rgba(255,68,68,0.15); border: 1.5px solid #ff4444; color: #ff4444; padding: 6px 10px; border-radius: 8px;"><i class="fas fa-trash"></i></button>
+                        ${(role === 'super') ? `<button onclick="eliminarEquipo('${area}', '${eq.fbKey || eq.tag}')" style="background: rgba(255,68,68,0.15); border: 1.5px solid #ff4444; color: #ff4444; padding: 6px 10px; border-radius: 8px;"><i class="fas fa-trash"></i></button>` : ''}
                     </div>
                 </div>`;
         });
@@ -904,6 +905,7 @@ function procesarCarga() {
 
 function cargarPlanosEdicionGeneral() {
     const area = document.getElementById('input-plano-area').value;
+    const role = sessionStorage.getItem('user_role');
     const render = () => {
         const cache = JSON.parse(localStorage.getItem('cache_planos_' + area) || "{}");
         let combinados = {...cache};
@@ -924,7 +926,7 @@ function cargarPlanosEdicionGeneral() {
                         ${p.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${p.fecha})</small>` : ''}
                         ${(!navigator.onLine && isPending) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                     </div>
-                    <button onclick="eliminarPlanoGeneral('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.2rem;"><i class="fas fa-times-circle"></i></button>
+                    ${(role === 'super') ? `<button onclick="eliminarPlanoGeneral('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.2rem;"><i class="fas fa-times-circle"></i></button>` : ''}
                 </div>`;
         });
     };
@@ -977,6 +979,7 @@ function guardarPlanoGeneral() {
 }
 
 function eliminarPlanoGeneral(a, i) {
+    if (sessionStorage.getItem('user_role') !== 'super') { notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error"); return; }
     confirmarHMI("¿ELIMINAR PLANO?", "¿Borrar plano permanentemente?", () => {
         let colaDel = JSON.parse(localStorage.getItem('cola_planos_del') || "[]");
         colaDel.push({ area: a, id: i });
@@ -1010,6 +1013,7 @@ function guardarManualArea() {
 
 function cargarDocsEdicion() {
     const area = document.getElementById('input-doc-area').value;
+    const role = sessionStorage.getItem('user_role');
     const render = () => {
         const cache = JSON.parse(localStorage.getItem('cache_docs_'+area) || "{}");
         let combinados = {...cache};
@@ -1030,7 +1034,7 @@ function cargarDocsEdicion() {
                         ${d.fecha ? ` <small style="color:#666; font-size:0.6rem;">(${d.fecha})</small>` : ''}
                         ${(!navigator.onLine && isPending) ? '<br><small style="color:#ffcc00; font-size:0.6rem;">(PENDIENTE DE SUBIDA)</small>' : ''}
                     </div>
-                    <button onclick="eliminarDocumento('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.1rem;"><i class="fas fa-trash-alt"></i></button>
+                    ${(role === 'super') ? `<button onclick="eliminarDocumento('${area}', '${id}')" style="color:#ff4444; background:none; border:none; font-size:1.1rem;"><i class="fas fa-trash-alt"></i></button>` : ''}
                 </div>`;
         });
     };
@@ -1235,6 +1239,7 @@ function procesarSolicitud(id, estado) {
 }
 
 function denegarSolicitud(id) {
+    if (sessionStorage.getItem('user_role') !== 'super') { notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error"); return; }
     confirmarHMI("¿DENEGAR ACCESO?", "¿Deseas denegar y eliminar esta solicitud de acceso?", () => {
         database.ref('personal_autorizado/'+id).remove().then(() => notificar("SOLICITUD ELIMINADA", "error"));
     });
@@ -1342,6 +1347,7 @@ function prepararEdicionAutorizado(id, nombre) {
 }
 
 function eliminarAutorizado(id) {
+    if (sessionStorage.getItem('user_role') !== 'super') { notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error"); return; }
     confirmarHMI("¿ELIMINAR ACCESO?", "¿Eliminar acceso a ID: "+id+"?", () => {
         database.ref('personal_autorizado/'+id).remove().then(() => notificar("ACCESO ELIMINADO"));
     });
@@ -2024,6 +2030,7 @@ function abrirManual() { document.getElementById('modal-manual').style.display =
 function cerrarManual() { document.getElementById('modal-manual').style.display = 'none'; }
 function cerrarModal() { if(document.getElementById('modal-info')) document.getElementById('modal-info').style.display = 'none'; }
 function eliminarEquipo(a, t) {
+    if (sessionStorage.getItem('user_role') !== 'super') { notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error"); return; }
     confirmarHMI("¿BORRAR EQUIPO?", "¿Borrar equipo " + t + "?", () => {
         let colaDel = JSON.parse(localStorage.getItem('cola_eliminaciones') || "[]");
         colaDel.push({ area: a, tag: t });
@@ -2039,6 +2046,7 @@ function eliminarEquipo(a, t) {
     });
 }
 function eliminarDocumento(a, i) {
+    if (sessionStorage.getItem('user_role') !== 'super') { notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error"); return; }
     confirmarHMI("¿BORRAR ARCHIVO?", "¿Borrar documento?", () => {
         let colaDel = JSON.parse(localStorage.getItem('cola_docs_del') || "[]");
         colaDel.push({ area: a, id: i });
@@ -2054,6 +2062,7 @@ function eliminarDocumento(a, i) {
     });
 }
 function solicitarEliminarU(u) {
+    if (sessionStorage.getItem('user_role') !== 'super') { notificar("ACCIÓN RESTRINGIDA AL MAESTRO", "error"); return; }
     confirmarHMI("¿ELIMINAR EDITOR?", "¿Borrar editor "+u+"?", () => {
         if(database) database.ref('usuarios/'+u).remove();
     });
