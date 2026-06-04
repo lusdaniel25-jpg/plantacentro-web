@@ -150,14 +150,14 @@
             <div class="admin-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div id="wrapper-sim-conexion" style="display: none; grid-column: span 2; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
-                        <label style="font-size: 0.55rem;">ESTADO CONEXIÓN:</label>
+                        <label for="sim-conexion" style="font-size: 0.55rem;">ESTADO CONEXIÓN:</label>
                         <select id="sim-conexion" style="padding: 5px; font-size: 0.75rem; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid #444; border-radius: 5px; width: 100%;">
                             <option value="DESCONECTADO">DESCONECTADO</option>
                             <option value="CONECTADO">CONECTADO</option>
                         </select>
                     </div>
                     <div>
-                        <label style="font-size: 0.55rem;">PRESET VOLTAJE:</label>
+                        <span style="display: block; font-size: 0.55rem; color: #888; margin-bottom: 2px;">PRESET VOLTAJE:</span>
                         <div style="display: flex; gap: 5px;">
                             <button onclick="document.getElementById('sim-voltaje').value=440; calcularSaludMotor()" style="flex: 1; font-size: 0.6rem; padding: 5px; background: #333; color: #ffcc00; border: 1px solid #ffcc00; border-radius: 4px;">440V</button>
                             <button onclick="document.getElementById('sim-voltaje').value=6600; calcularSaludMotor()" style="flex: 1; font-size: 0.6rem; padding: 5px; background: #333; color: #ff4444; border: 1px solid #ff4444; border-radius: 4px;">6.6kV</button>
@@ -166,7 +166,7 @@
                 </div>
 
                 <div id="wrapper-sim-conductor" style="display: none; grid-column: span 2; margin-bottom: 5px;">
-                    <label style="font-size: 0.55rem;">TIPO DE CONDUCTOR:</label>
+                    <label for="sim-conductor" style="font-size: 0.55rem;">TIPO DE CONDUCTOR:</label>
                     <select id="sim-conductor" style="padding: 5px; font-size: 0.75rem; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid #444; border-radius: 5px; width: 100%;">
                         <option value="MONOPOLAR">MONOPOLAR (1 NÚCLEO)</option>
                         <option value="TRIPOLAR">TRIPOLAR (3 NÚCLEOS)</option>
@@ -185,7 +185,7 @@
                 </div>
 
                 <div id="wrapper-sim-nucleos" style="display: none; grid-column: span 2; margin-bottom: 5px;">
-                    <label style="font-size: 0.55rem;">NÚCLEOS / DEVANADOS:</label>
+                    <label for="sim-nucleos" style="font-size: 0.55rem;">NÚCLEOS / DEVANADOS:</label>
                     <select id="sim-nucleos" style="padding: 5px; font-size: 0.75rem; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid #444; border-radius: 5px; width: 100%;">
                         <option value="2 NÚCLEOS">2 NÚCLEOS (AT/BT)</option>
                         <option value="3 NÚCLEOS">3 NÚCLEOS (AT/MT/BT)</option>
@@ -389,13 +389,13 @@
                     PASOS DE ARRANQUE Y LÍMITES <i class="fas fa-chevron-down"></i>
                 </button>
                 <div class="panel-admin">
-                    <label>GESTIÓN DE PASOS DE ARRANQUE:</label>
+                    <span style="display: block; font-weight: bold; margin-bottom: 10px; font-size: 0.75rem; color: #00ffcc;">GESTIÓN DE PASOS DE ARRANQUE:</span>
                     <div id="contenedor-pasos-edit" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;"></div>
                     <button onclick="agregarInputPaso()" class="btn-guardar-admin" style="background: #333; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; margin-bottom: 20px;">
                         <i class="fas fa-plus"></i> AGREGAR SIGUIENTE PASO
                     </button>
 
-                    <label>PARÁMETROS DE DISEÑO / LÍMITES:</label>
+                    <span style="display: block; font-weight: bold; margin-bottom: 10px; font-size: 0.75rem; color: #00ffcc;">PARÁMETROS DE DISEÑO / LÍMITES:</span>
                     <div class="input-row">
                         <div><label for="edit-op-presion">PRESIÓN (bar):</label><input type="text" id="edit-op-presion"></div>
                         <div><label for="edit-op-flujo">FLUJO (t/h):</label><input type="text" id="edit-op-flujo"></div>
