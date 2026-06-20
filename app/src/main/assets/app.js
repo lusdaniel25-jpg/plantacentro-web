@@ -81,79 +81,97 @@ function conectarFirebase() {
     if (typeof firebase !== 'undefined') {
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
-            firebase.database().goOnline();
-        }
-        database = firebase.database();
-
-        // RASTREO DE PRESENCIA INMEDIATO (Asegura estado online al navegar por áreas)
-        const roleP = sessionStorage.getItem('user_role') || 'LECTURA';
-        const userP = sessionStorage.getItem('user_name') || 'Invitado';
-        if (userP !== 'Invitado') {
-            const savedIdP = localStorage.getItem('user_id_std');
-            let idRastreoP = (roleP === 'super' || roleP === 'editor') ? userP : (savedIdP || userP);
-            idRastreoP = idRastreoP.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
-            if (idRastreoP) {
-                const presenceRef = database.ref('presencia/' + idRastreoP);
-                presenceRef.onDisconnect().update({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
-                presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
-            }
         }
 
-        if (!listenerConexionActivo) {
-            database.ref('.info/connected').on('value', (snap) => {
-                const isConnected = snap.val() === true;
+        // Autenticación anónima para cumplir con las reglas "auth != null"
+        firebase.auth().signInAnonymously()
+            .then(() => {
+                database = firebase.database();
+                database.goOnline();
 
-                document.querySelectorAll('.online-indicator').forEach(el => {
-                    el.classList.toggle('status-online', isConnected);
-                    el.classList.toggle('status-offline', !isConnected);
-                    el.title = isConnected ? "SISTEMA EN LÍNEA" : "SISTEMA SIN CONEXIÓN";
-                });
+                // Cargar datos que pueden tener cache o listeners activos
+                inicializarDatosTrasAuth();
 
-                if (isConnected) {
-                    const role = sessionStorage.getItem('user_role') || 'LECTURA';
-                    const user = sessionStorage.getItem('user_name') || 'Invitado';
-                    const esBienvenida = window.location.href.includes("bienvenida.html");
-
-                    if (!notificacionConexionMostrada && (role !== 'LECTURA' || user !== 'Invitado')) {
-                        notificacionConexionMostrada = true;
-                        notificacionOfflineMostrada = false;
-                        if (esBienvenida) notificar("CONEXIÓN RESTABLECIDA - SINCRONIZANDO DATOS", "exito");
-                    }
-
-                    // RASTREO DE PRESENCIA (Al reconectar)
-                    if (user !== 'Invitado') {
-                        const savedId = localStorage.getItem('user_id_std');
-                        let idRastreo = (role === 'super' || role === 'editor') ? user : (savedId || user);
-                        idRastreo = idRastreo.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
-
-                        if (idRastreo) {
-                            const presenceRef = database.ref('presencia/' + idRastreo);
-                            presenceRef.onDisconnect().update({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
-                            presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
-                        }
-                    }
-
-                    // Iniciar procesos de red solo una vez o cuando sea necesario
-                    sincronizarColas();
-                    verificarSucesionAutomatica();
-
-                    if (!listenersGlobalesActivos) {
-                        verificarActualizaciones();
-                        // Sincronizar datos maestros
-                        database.ref('config/master_pass').on('value', s => s.val() && localStorage.setItem('master_pass', s.val()));
-                        database.ref('config/master_name').on('value', s => s.val() && localStorage.setItem('master_name', s.val()));
-                        listenersGlobalesActivos = true;
-                    }
-                } else {
-                    if (!navigator.onLine && !notificacionOfflineMostrada) {
-                        notificacionOfflineMostrada = true;
-                        notificacionConexionMostrada = false;
-                        if (window.location.href.includes("bienvenida.html")) notificar("TRABAJANDO EN MODO OFFLINE", "warning");
+                // RASTREO DE PRESENCIA INMEDIATO (Asegura estado online al navegar por áreas)
+                const roleP = sessionStorage.getItem('user_role') || 'LECTURA';
+                const userP = sessionStorage.getItem('user_name') || 'Invitado';
+                if (userP !== 'Invitado') {
+                    const savedIdP = localStorage.getItem('user_id_std');
+                    let idRastreoP = (roleP === 'super' || roleP === 'editor') ? userP : (savedIdP || userP);
+                    idRastreoP = idRastreoP.toLowerCase().trim().replace(/[\.\$#\[\]\/]/g, "_");
+                    if (idRastreoP) {
+                        const presenceRef = database.ref('presencia/' + idRastreoP);
+                        presenceRef.onDisconnect().update({ estado: 'offline', ultima: firebase.database.ServerValue.TIMESTAMP });
+                        presenceRef.update({ estado: 'online', ultima: firebase.database.ServerValue.TIMESTAMP });
                     }
                 }
+
+                if (!listenerConexionActivo) {
+                    database.ref('.info/connected').on('value', (snap) => {
+                        const isConnected = snap.val() === true;
+
+                        document.querySelectorAll('.online-indicator').forEach(el => {
+                            el.classList.toggle('status-online', isConnected);
+                            el.classList.toggle('status-offline', !isConnected);
+                            el.title = isConnected ? "SISTEMA EN LÍNEA" : "SISTEMA SIN CONEXIÓN";
+                        });
+
+                        if (isConnected) {
+                            const role = sessionStorage.getItem('user_role') || 'LECTURA';
+                            const user = sessionStorage.getItem('user_name') || 'Invitado';
+                            const esBienvenida = window.location.href.includes("bienvenida.html");
+
+                            if (!notificacionConexionMostrada && (role !== 'LECTURA' || user !== 'Invitado')) {
+                                notificacionConexionMostrada = true;
+                                notificacionOfflineMostrada = false;
+                                if (esBienvenida) notificar("CONEXIÓN RESTABLECIDA - SINCRONIZANDO DATOS", "exito");
+                            }
+
+                            // Iniciar procesos de red solo una vez o cuando sea necesario
+                            sincronizarColas();
+                            verificarSucesionAutomatica();
+
+                            if (!listenersGlobalesActivos) {
+                                verificarActualizaciones();
+                                // Sincronizar datos maestros
+                                database.ref('config/master_pass').on('value', s => s.val() && localStorage.setItem('master_pass', s.val()));
+                                database.ref('config/master_name').on('value', s => s.val() && localStorage.setItem('master_name', s.val()));
+                                listenersGlobalesActivos = true;
+                            }
+                        } else {
+                            if (!navigator.onLine && !notificacionOfflineMostrada) {
+                                notificacionOfflineMostrada = true;
+                                notificacionConexionMostrada = false;
+                                if (window.location.href.includes("bienvenida.html")) notificar("TRABAJANDO EN MODO OFFLINE", "warning");
+                            }
+                        }
+                    });
+                    listenerConexionActivo = true;
+                }
+            })
+            .catch((error) => {
+                console.error("Error en Autenticación Firebase:", error.code, error.message);
+                if (window.location.href.includes("bienvenida.html")) notificar("ERROR DE SEGURIDAD: CONSULTE AL ADMINISTRADOR", "error");
             });
-            listenerConexionActivo = true;
+    }
+}
+
+function inicializarDatosTrasAuth() {
+    if (!database) return;
+    const role = sessionStorage.getItem('user_role');
+
+    if (role === 'super') {
+        cargarSolicitudesAcceso();
+        if (document.getElementById('seccion-usuarios')) {
+            cargarListaUsuarios();
+            cargarListaPersonalAutorizado();
+            cargarMegados();
         }
+    }
+
+    const idEsperando = localStorage.getItem('esperando_aprobacion');
+    if (idEsperando) {
+        escucharEstadoSolicitud(idEsperando);
     }
 }
 
@@ -1976,20 +1994,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Monitoreo global para el Maestro
     if(role === 'super') {
-        cargarSolicitudesAcceso();
+        // Estas funciones se llamarán cuando el database esté listo dentro de conectarFirebase
         monitorearActividad();
     }
 
     // Si hay una solicitud pendiente de este dispositivo, reanudar escucha
     const idEsperando = localStorage.getItem('esperando_aprobacion');
     if (idEsperando) {
-        escucharEstadoSolicitud(idEsperando);
+        // Se llamará cuando esté listo
     }
 
     if(role === 'super' && document.getElementById('seccion-usuarios')) {
         document.getElementById('seccion-usuarios').style.display = 'block';
-        cargarListaUsuarios(); cargarListaPersonalAutorizado();
-        cargarMegados(); // También cargar historial de megados en el panel admin
     }
 
     // Mostrar botón de logout si hay sesión activa
